@@ -1,1 +1,1 @@
-ID,WMO,Program,Buoy Type,Deployment Date,Deployment Latitude,Deployment Longitude,End Date,End Latitude,End Longitude,Drogue Off Date,Death Type
+ID,WMO,Program,Buoy Type,Deployment Date,x,Deployment Latitude,Deployment Longitude,End Date,y,End Latitude,End Longitude,Drogue Off Date,z,Death Type
