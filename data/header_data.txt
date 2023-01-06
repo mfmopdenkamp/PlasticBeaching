@@ -1,1 +1,0 @@
-ID,month,day,year,Latitude,Longitude,SST_C,VE_cm/s,VN_cm/s,SPD_cm/s,Var.Lat,Var.Lon,Var.Temp

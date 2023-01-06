@@ -1,31 +1,28 @@
+import geopandas as gpd
+import xarray as xr
 import load_data
-import numpy as np
-import matplotlib.pyplot as plt
-import cartopy.crs as crs
 
-ds = load_data.drifter_data_hourly()
-meta = load_data.drifter_metadata()
-n_ids = len(meta)
+ds = load_data.drifter_data_hourly(filename='gdp_galapagos.nc')
 
-death_types = np.sort(meta['Death Type'].unique())
-death_type_fraction = np.zeros(len(death_types))
-for d_type in death_types:
-    death_type_fraction[d_type] = len(meta[meta['Death Type'] == d_type]) / n_ids
+gshhg = load_data.coast_lines()
 
-death_colors = {0: 'r', 1: 'g', 2: 'b', 3: 'y', 4: 'c', 5: 'm', 6: 'aquamarine'}
-fig, ax = plt.subplots()
-ax.bar(death_types, death_type_fraction, color=death_colors.values())
-ax.set_ylabel('Fraction')
-ax.set_xlabel('Death Type')
-plt.show()
+# min_lat = -92
+# max_lat = -76
+# min_lon = -5
+# max_lon = 10
+# lonlat_box = {'longitude': (min_lon, max_lon), 'latitude': (min_lat, max_lat)}
+# ds_subset = ds.sel(lonlat_box)
+#
+# mask = (ds.longitude >= min_lon) & (ds.longitude <= max_lon) & (ds.latitude >= min_lat) & (ds.latitude <= max_lat)
+# ds_subset = ds.where(mask)
 
-fig2 = plt.figure(figsize=(14, 8))
-ax = plt.axes(projection=crs.PlateCarree())
-for i_dt, d_type in enumerate(death_types):
-    df_to_plot = meta[meta['Death Type'] == d_type]
-    ax.scatter(df_to_plot['End Longitude'], df_to_plot['End Latitude'], color=death_colors[i_dt], s=2,
-               transform=crs.PlateCarree(), label='d_type')
+gdf = gpd.GeoDataFrame(ds.to_dataframe(), geometry=gpd.points_from_xy(ds.longitude, ds.latitude))
 
-ax.coastlines()
-ax.legend()
-plt.show()
+# Create a buffer around the shoreline with a distance of 10km
+shoreline_buffer = gshhg.geometry.buffer(10000)
+
+# Find the locations in the xarray data that intersect with the buffered shoreline
+mask = gdf.geometry.intersects(shoreline_buffer)
+
+# Select only the locations within 10km of the shoreline from the original xarray data
+selected_data = ds.where(mask)
