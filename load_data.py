@@ -26,7 +26,6 @@ def drifter_data_six_hourly(nrows=None, parts=(1, 2, 3, 4)):
     :return: Pandas DataFrame
     """
 
-    # Set up pickle stuff for faster loading of the data into dataframe
 
     directory = data_folder + 'gdp_six_hourly/'
     with open(f'{directory}header_data.txt', 'rt') as f:
@@ -55,8 +54,6 @@ def drifter_data_six_hourly(nrows=None, parts=(1, 2, 3, 4)):
     df.drop(columns=['month', 'day', 'year', 'hour', 'part of day'], inplace=True)
     df.set_index('datetime', inplace=True)
 
-    print('DataFrame dumped to pickle.')
-
     return df
 
 
@@ -84,18 +81,8 @@ def drifter_metadata(nrows=None, parts=(1, 2, 3, 4)):
     return df
 
 
-def coast_lines(version='shapefile'):
-
-    if version == 'shapefile':
-        return gpd.read_file(f'{data_folder}gshhg-shp-2.3.7/GSHHS_shp/h/GSHHS_h_L1.shp')
-
-    if version == 'netCDF4':
-        # extract tarfile
-        if not os.path.exists(data_folder + '/gshhg-gmt-2.3.7'):
-            with tarfile.open(data_folder + '/gshhg-gmt-2.3.7.tar.gz', 'r:gz') as f:
-                print(f.getnames())
-                f.extractall('data')
-        return xr.load_dataset(data_folder + '/gshhg-gmt-2.3.7/binned_GSHHS_h.nc')
+def coast_lines(resolution='i'):
+    return gpd.read_file(f'{data_folder}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
 
 
 if __name__ == '__main__':
@@ -116,7 +103,4 @@ if __name__ == '__main__':
     # print('Load coastlines..', end='')
     # sf = coast_lines()
     # print('Done.')
-
-
-
 

@@ -1,25 +1,73 @@
 import geopandas as gpd
-import xarray as xr
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import numpy as np
+
 import load_data
 import pickle_manager as pickm
 
 filename = 'gdp_galapagos.nc'
+ds_drifters = pickm.load_pickle_wrapper(filename, load_data.drifter_data_hourly, filename)
 
-ds = pickm.load_pickle_wrapper(filename, load_data.drifter_data_hourly, filename)
+nrows=1000000
+df_drifters = pickm.load_pickle_wrapper(f'drifter_data_{nrows}', load_data.drifter_data_six_hourly, nrows)
 
-gshhg = pickm.load_pickle_wrapper('coastlines_shapefile', load_data.coast_lines)
+# min_lat = -92
+# max_lat = -76
+# min_lon = -5
+# max_lon = 10
+# lonlat_box = {'longitude': (min_lon, max_lon), 'latitude': (min_lat, max_lat)}
+# ds_drifters = ds_drifters.sel(lonlat_box)
 
-# # min_lat = -92
-# # max_lat = -76
-# # min_lon = -5
-# # max_lon = 10
-# # lonlat_box = {'longitude': (min_lon, max_lon), 'latitude': (min_lat, max_lat)}
-# # ds_subset = ds.sel(lonlat_box)
+gdf_drifters = gpd.GeoDataFrame(ds_drifters.to_dataframe(),
+                                geometry=gpd.points_from_xy(ds_drifters.longitude, ds_drifters.latitude),
+                                crs='epsg:4326')
+
+resolution = 'l'
+gdf_shoreline = pickm.load_pickle_wrapper(f'coastlines_{resolution}', load_data.coast_lines, resolution)
+
+gdf_shoreline.to_crs(crs=3857, inplace=True)
+gdf_drifters.to_crs(gdf_shoreline.crs, inplace=True)
+
+
+nearby_drifters = gpd.tools.sjoin(gdf_drifters, gdf_shoreline, predicate='within')
+distance = 0.1
+mask = gdf_drifters.geometry.intersects(gdf_shoreline.buffer(0.1))
+while mask.sum() <= 0:
+    distance *= 10
+    print(f'Mask is empty. New distance = {distance}')
+    mask = gdf_drifters.geometry.intersects(gdf_shoreline.buffer(distance))
+
+distance2 = 10
+mask2 = gdf_drifters.geometry.distance(gdf_shoreline.geometry) < distance2
+while mask2.sum() <= 0:
+    distance2 *= 10
+    print(f'Mask is empty. New distance2 = {distance2}')
+    mask2 = gdf_drifters.geometry.distance(gdf_shoreline.geometry) < distance2
+
+
+fig = plt.figure(dpi=300)
+ax = plt.axes(projection=ccrs.PlateCarree())
+ax.scatter(gdf_drifters['longitude'], gdf_drifters['latitude'], transform=ccrs.PlateCarree(), c='k', s=1,
+           label='all', alpha=0.3)
+ax.scatter(gdf_drifters[mask]['longitude'], gdf_drifters[mask]['latitude'], transform=ccrs.PlateCarree(),
+           label='intersect')
+ax.scatter(gdf_drifters[mask2]['longitude'], gdf_drifters[mask2]['latitude'], transform=ccrs.PlateCarree(),
+           label='distance')
+ax.scatter(nearby_drifters['longitude'], nearby_drifters['latitude'], transform=ccrs.PlateCarree(), label='sjoin')
+
+
+ax.coastlines()
+ax.legend()
+plt.show()
+
+
 # #
 # # mask = (ds.longitude >= min_lon) & (ds.longitude <= max_lon) & (ds.latitude >= min_lat) & (ds.latitude <= max_lat)
 # # ds_subset = ds.where(mask)
 #
-# gdf = gpd.GeoDataFrame(ds.to_dataframe(), geometry=gpd.points_from_xy(ds.longitude, ds.latitude))
+
+
 #
 # # Create a buffer around the shoreline with a distance of 10km
 # shoreline_buffer = gshhg.geometry.buffer(10000)

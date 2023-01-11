@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as crs
 
-ds = load_data.drifter_data_hourly()
+# ds = load_data.drifter_data_hourly()
 min_lon = -92+360
 max_lon = -76+360
 min_lat = -5
