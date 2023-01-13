@@ -15,7 +15,7 @@ from matplotlib.transforms import offset_copy
 def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
     """ This function sets up a figure (fig and ax) for plotting the data in the Galapagos region.
     This set-up contains a background terrain map of the Galapagos region, extending from lat (-2,1) and lon (-93, -88.5)"""
-    fig = plt.figure(figsize=size)
+    fig = plt.figure(figsize=size, dpi=300)
 
     tiler = Stamen('terrain-background')
     mercator = tiler.crs
