@@ -40,13 +40,13 @@ df_gdp.to_crs(df_shore.crs, inplace=True)
 
 print(f'Started to calculate shortest distances for {len(df_gdp)} points..', end='')
 start = time.time()
-ds_gdp = ds_gdp.assign(distance_shoreline=get_shortest_distance(df_gdp, df_shore))
+ds_gdp['distance_shoreline'] = ('row', get_shortest_distance(df_gdp, df_shore))
 print(f'Done. Elapsed time {np.round(time.time() - start, 2)}s')
 
 
 # PLOTTING
 def plot():
-    fig, ax = plotter.get_sophie_subplots(extent=(-93, -88, -2, 2), title=f'Trajectory drifter {IDs}')
+    fig, ax = plotter.get_sophie_subplots(extent=(-92, -88.5, -1.75, 1), title=f'Trajectory drifter {IDs}')
     pcm = ax.scatter(ds_gdp.longitude, ds_gdp.latitude, transform=ccrs.PlateCarree(),
                      c=ds_gdp.distance_shoreline, cmap='inferno')
     ax.scatter(ds_gdp.longitude, ds_gdp.latitude, transform=ccrs.PlateCarree(), c='k', s=0.4,
