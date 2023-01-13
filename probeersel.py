@@ -1,8 +1,7 @@
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import numpy as np
-
+import plotter
 import load_data
 import pickle_manager as pickm
 
@@ -24,7 +23,7 @@ gdf_drifters = gpd.GeoDataFrame(ds_drifters.to_dataframe(),
                                 crs='epsg:4326')
 
 resolution = 'l'
-gdf_shoreline = pickm.load_pickle_wrapper(f'coastlines_{resolution}', load_data.coast_lines, resolution)
+gdf_shoreline = pickm.load_pickle_wrapper(f'shoreline_{resolution}', load_data.shoreline, resolution)
 
 gdf_shoreline.to_crs(crs=3857, inplace=True)
 gdf_drifters.to_crs(gdf_shoreline.crs, inplace=True)
@@ -37,6 +36,9 @@ while mask.sum() <= 0:
     distance *= 10
     print(f'Mask is empty. New distance = {distance}')
     mask = gdf_drifters.geometry.intersects(gdf_shoreline.buffer(distance))
+distance *= 10
+print(f'New distance = {distance}')
+mask = gdf_drifters.geometry.intersects(gdf_shoreline.buffer(distance))
 
 distance2 = 10
 mask2 = gdf_drifters.geometry.distance(gdf_shoreline.geometry) < distance2
@@ -44,10 +46,14 @@ while mask2.sum() <= 0:
     distance2 *= 10
     print(f'Mask is empty. New distance2 = {distance2}')
     mask2 = gdf_drifters.geometry.distance(gdf_shoreline.geometry) < distance2
+distance2 *= 10
+print(f'New distance2 = {distance2}')
+mask2 = gdf_drifters.geometry.distance(gdf_shoreline.geometry) < distance2
 
 
-fig = plt.figure(dpi=300)
-ax = plt.axes(projection=ccrs.PlateCarree())
+# fig = plt.figure(dpi=300)
+# ax = plt.axes(projection=ccrs.PlateCarree())
+fig, ax = plotter.get_sophie_subplots(extent=(-92.5, -88.5, -1.75, 1))
 ax.scatter(gdf_drifters['longitude'], gdf_drifters['latitude'], transform=ccrs.PlateCarree(), c='k', s=1,
            label='all', alpha=0.3)
 ax.scatter(gdf_drifters[mask]['longitude'], gdf_drifters[mask]['latitude'], transform=ccrs.PlateCarree(),
@@ -56,9 +62,7 @@ ax.scatter(gdf_drifters[mask2]['longitude'], gdf_drifters[mask2]['latitude'], tr
            label='distance')
 ax.scatter(nearby_drifters['longitude'], nearby_drifters['latitude'], transform=ccrs.PlateCarree(), label='sjoin')
 
-
-ax.coastlines()
-ax.legend()
+ax.legend(loc=3)
 plt.show()
 
 

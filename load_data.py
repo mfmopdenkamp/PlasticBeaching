@@ -81,7 +81,7 @@ def drifter_metadata(nrows=None, parts=(1, 2, 3, 4)):
     return df
 
 
-def coast_lines(resolution='i'):
+def shoreline(resolution='i'):
     return gpd.read_file(f'{data_folder}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
 
 
@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     print('Loading hourly drifter data into Xarray..', end='')
     start = time.time()
-    ds = drifter_data_hourly(load_into_memory=True)
+    ds = drifter_data_hourly()
     print(f'Done. Elapsed time = {time.time() - start}')
 
     # print('Load drifter metadata..', end='')
