@@ -9,8 +9,8 @@ import time
 
 def interpolate_drifter_location(df_shore, ds_drifter):
     # Drifter locations (longitude and latitude)
-    drifter_lon = ds.longitude.values
-    drifter_lat = ds.latitude.values
+    drifter_lon = ds_drifter.longitude.values
+    drifter_lat = ds_drifter.latitude.values
 
     # Shore distances (longitude, latitude and distance to the shore)
     shore_lon = df_shore['longitude'].values
@@ -20,7 +20,7 @@ def interpolate_drifter_location(df_shore, ds_drifter):
     # Interpolate the drifter locations onto the raster
     start = time.time()
     drifter_dist = griddata((shore_lon, shore_lat), shore_dist, (drifter_lon, drifter_lat), method='nearest')
-    print(f'Done. Elapsed time {np.round(time.time() - start, 2)}s')
+    print(f'Interpolation done. Elapsed time {np.round(time.time() - start, 2)}s')
 
     return drifter_dist
 
