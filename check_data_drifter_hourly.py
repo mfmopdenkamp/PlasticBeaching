@@ -1,4 +1,4 @@
-cheimport matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import cartopy.crs as crs
 import pickle_manager as pickm
 import load_data
