@@ -101,6 +101,28 @@ def get_bathymetry():
 def get_ds_drifters(filename='gdp_v2.00.nc'):
     return pickm.load_pickle_wrapper(filename, drifter_data_hourly, filename)
 
+def get_ds_drifters_subset(proximity):
+    df_shore = get_distance_to_shore_raster_04()
+
+    # Load the hourly data from the Global Drifter Program
+    ds = get_ds_drifters()
+
+    # Interpolate the drifter data onto the raster with distances to the shoreline (or load from pickle. Operation on full dataset cost 812s on my laptop)
+    drif_dist_filename = 'drifter_distances_interpolated_0.04deg_raster'
+    drifter_dist_approx = pickm.load_pickle_wrapper(drif_dist_filename, interpolate_drifter_location, df_shore, ds)
+
+    # Create a subset of the drifter data that is within a certain proximity of the shoreline
+    close_to_shore = drifter_dist_approx < proximity
+
+    ds_subset = ds.isel(obs=np.where(close_to_shore)[0])
+    print(f'Number of rows in original GDP dataset = {ds.obs.shape[0]}. Rows left in subset = {close_to_shore.sum()}. '
+          f'This is reduction of {np.round(ds.obs.shape[0] / close_to_shore.sum(), 2)} times the original data.')
+
+    # Write to pickle file for easy use.
+    pickle_name = pickm.create_pickle_name(f'gdp_subset_{proximity}km')
+    with open(pickle_name, 'wb') as f:
+        pickle.dump(ds_subset, f)
+
 
 if __name__ == '__main__':
     # print('Loading six-hourly drifter data into Pandas DataFrame..', end='')

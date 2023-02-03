@@ -26,7 +26,8 @@ def interpolate_drifter_location(df_shore, ds_drifter):
     return drifter_dist
 
 
-if __name__ == '__main__':
+def select_subset_ds_drifters(proximity):
+    """proximity is in km"""
     # Load the 0.04deg raster with distances to the shoreline
     df_shore = load_data.get_distance_to_shore_raster_04()
 
@@ -38,12 +39,18 @@ if __name__ == '__main__':
     drifter_dist_approx = pickm.load_pickle_wrapper(drif_dist_filename, interpolate_drifter_location, df_shore, ds)
 
     # Create a subset of the drifter data that is within a certain proximity of the shoreline
-    proximity = 10  # kilometers
     close_to_shore = drifter_dist_approx < proximity
 
     ds_subset = ds.isel(obs=np.where(close_to_shore)[0])
     print(f'Number of rows in original GDP dataset = {ds.obs.shape[0]}. Rows left in subset = {close_to_shore.sum()}. '
-          f'This is reduction of {np.round(ds.obs.shape[0]/close_to_shore.sum(), 2)} times the original data.')
+          f'This is reduction of {np.round(ds.obs.shape[0] / close_to_shore.sum(), 2)} times the original data.')
+    return ds_subset
+
+
+if __name__ == '__main__':
+
+    proximity = 10  # km
+    ds_subset = select_subset_ds_drifters(proximity)
 
     # Write to pickle file for easy use.
     pickle_name = pickm.create_pickle_name(f'gdp_subset_{proximity}km')
@@ -51,6 +58,8 @@ if __name__ == '__main__':
         pickle.dump(ds_subset, f)
 
     # Plot distance to shore distribution. Why are they so close to the shore?
+    df_shore = load_data.get_distance_to_shore_raster_04()
+
     fig1 = plt.figure()
     plt.hist(df_shore['distance'].values, bins=50)
     plt.xlabel('distance to shore [km]')
