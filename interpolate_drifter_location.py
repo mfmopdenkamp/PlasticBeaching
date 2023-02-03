@@ -14,9 +14,9 @@ def interpolate_drifter_location(df_shore, ds_drifter):
     drifter_lat = ds_drifter.latitude.values
 
     # Shore distances (longitude, latitude and distance to the shore)
-    shore_lon = df_shore['longitude'].values
-    shore_lat = df_shore['latitude'].values
-    shore_dist = df_shore['distance'].values
+    shore_lon = df_shore.longitude.values
+    shore_lat = df_shore.latitude.values
+    shore_dist = df_shore.distance.values
 
     # Interpolate the drifter locations onto the raster
     start = time.time()
@@ -28,14 +28,10 @@ def interpolate_drifter_location(df_shore, ds_drifter):
 
 if __name__ == '__main__':
     # Load the 0.04deg raster with distances to the shoreline
-    filename_dist2shore = 'dist2coast.txt.bz2'
-    df_shore = pickm.load_pickle_wrapper(filename_dist2shore, pd.read_csv, load_data.data_folder+filename_dist2shore,
-                                       delim_whitespace=True, names=['longitude', 'latitude', 'distance'],
-                                       header=None, compression='bz2')
+    df_shore = load_data.get_distance_to_shore_raster_04()
 
     # Load the hourly data from the Global Drifter Program
-    filename_gdp = 'gdp_v2.00.nc'
-    ds = pickm.load_pickle_wrapper(filename_gdp, load_data.drifter_data_hourly, filename_gdp)
+    ds = load_data.get_ds_drifters()
 
     # Interpolate the drifter data onto the raster with distances to the shoreline (or load from pickle. Operation on full dataset cost 812s on my laptop)
     drif_dist_filename = 'drifter_distances_interpolated_0.04deg_raster'
@@ -50,7 +46,8 @@ if __name__ == '__main__':
           f'This is reduction of {np.round(ds.obs.shape[0]/close_to_shore.sum(), 2)} times the original data.')
 
     # Write to pickle file for easy use.
-    with open(f'{filename_gdp}subset_{proximity}km.pkl', 'wb') as f:
+    pickle_name = pickm.create_pickle_name(f'gdp_subset_{proximity}km')
+    with open(pickle_name, 'wb') as f:
         pickle.dump(ds_subset, f)
 
     # Plot distance to shore distribution. Why are they so close to the shore?

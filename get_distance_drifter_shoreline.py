@@ -23,8 +23,8 @@ def get_shortest_distance(drifters, shoreline):
     return shortest_distances
 
 
-filename = 'gdp_galapagos.nc'
-ds_gdp = pickm.load_pickle_wrapper(filename, load_data.drifter_data_hourly, filename)
+
+ds_gdp = load_data.get_ds_drifters(filename='gdp_galapagos.nc')
 IDs = np.unique(ds_gdp.ID)[0]
 ds_gdp = ds_gdp.where(ds_gdp.ID.isin(IDs), drop=True)
 
@@ -33,7 +33,7 @@ df_gdp = gpd.GeoDataFrame({'latitude' : ds_gdp.latitude, 'longitude': ds_gdp.lon
                           crs='epsg:4326')
 
 resolution = 'c'
-df_shore = pickm.load_pickle_wrapper(f'shoreline_{resolution}', load_data.shoreline, resolution)
+df_shore = pickm.load_pickle_wrapper(f'shoreline_{resolution}', load_data.get_shoreline, resolution)
 
 df_shore.to_crs(crs=3857, inplace=True)
 df_gdp.to_crs(df_shore.crs, inplace=True)

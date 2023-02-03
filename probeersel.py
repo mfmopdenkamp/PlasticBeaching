@@ -2,20 +2,15 @@ import pickle_manager as pickm
 import load_data
 import pandas as pd
 import numpy as np
-from interpolate_drifter_location import interpolate_drifter_location
+from scipy.interpolate import griddata
 
-filename = 'gdp_v2.00.nc'
-ds = pickm.load_pickle_wrapper(filename, load_data.drifter_data_hourly, filename)
 
-filename = 'dist2coast.txt.bz2'
-df_shore = pickm.load_pickle_wrapper(filename, pd.read_csv, load_data.data_folder+filename,
-                                     delim_whitespace=True, names=['longitude', 'latitude', 'distance'],
-                                     header=None, compression='bz2')
+ds = load_data.get_ds_drifters(filename='gdp_galapagos.nc')
+df_shore = load_data.get_shoreline('c')
+ds_gebco = load_data.get_bathymetry()
+df_d2s = load_data.get_distance_to_shore_raster_04()
 
-drifter_dist_approx = pickm.load_pickle_wrapper('drifter_distances_interpolated_0.04deg_raster',
-                                                interpolate_drifter_location, df_shore, ds)
 
-proximity = 10  # kilometers
-close_to_shore = drifter_dist_approx < proximity
-print(f'Total rows left = {close_to_shore.sum()}')
-ds_subset = ds.isel(obs=np.where(close_to_shore)[0])
+lon, lat = np.meshgrid(ds_gebco.lon, ds_gebco.lat)
+drifter_depth = griddata((lon.flatten(), lat.flatten()), ds_gebco.elevation.flatten(), (ds.longitude, ds.latitude),
+                         method='linear')

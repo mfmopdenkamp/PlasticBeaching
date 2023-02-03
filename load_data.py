@@ -1,7 +1,6 @@
 import pandas as pd
 import geopandas as gpd
-import os
-import tarfile
+import pickle_manager as pickm
 import xarray as xr
 import time
 
@@ -81,8 +80,26 @@ def drifter_metadata(nrows=None, parts=(1, 2, 3, 4)):
     return df
 
 
-def shoreline(resolution='i'):
-    return gpd.read_file(f'{data_folder}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
+def get_distance_to_shore_raster_04():
+    filename_dist2shore = 'dist2coast.txt.bz2'
+    return pickm.load_pickle_wrapper(filename_dist2shore, pd.read_csv, data_folder + filename_dist2shore,
+                                     delim_whitespace=True, names=['longitude', 'latitude', 'distance'],
+                                     header=None, compression='bz2')
+
+
+def get_shoreline(resolution):
+    return pickm.load_pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
+                              f'{data_folder}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
+
+
+def get_bathymetry():
+    filename_gebco = 'GEBCO_2022_sub_ice_topo.nc'
+    return pickm.load_pickle_wrapper(filename_gebco, xr.load_dataset,
+                                     f'{data_folder}gebco_2022_sub_ice_topo/{filename_gebco}')
+
+
+def get_ds_drifters(filename='gdp_v2.00.nc'):
+    return pickm.load_pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
 if __name__ == '__main__':
