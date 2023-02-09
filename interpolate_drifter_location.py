@@ -26,13 +26,13 @@ def interpolate_drifter_location(df_shore, ds_drifter):
     return drifter_dist
 
 
-def select_subset_ds_drifters(proximity):
+def select_subset_ds_drifters(proximity, filename='gdp_v2.00.nc'):
     """proximity is in km"""
     # Load the 0.04deg raster with distances to the shoreline
     df_shore = load_data.get_distance_to_shore_raster_04()
 
     # Load the hourly data from the Global Drifter Program
-    ds = load_data.get_ds_drifters()
+    ds = load_data.get_ds_drifters(filename=filename)
 
     # Interpolate the drifter data onto the raster with distances to the shoreline (or load from pickle. Operation on full dataset cost 812s on my laptop)
     drif_dist_filename = 'drifter_distances_interpolated_0.04deg_raster'
