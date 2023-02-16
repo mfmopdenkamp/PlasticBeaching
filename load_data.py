@@ -80,29 +80,31 @@ def drifter_metadata(nrows=None, parts=(1, 2, 3, 4)):
     return df
 
 
-def get_distance_to_shore_raster_04():
+def get_raster_distance_to_shore_04deg():
     filename_dist2shore = 'dist2coast.txt.bz2'
-    return pickm.load_pickle_wrapper(filename_dist2shore, pd.read_csv, data_folder + filename_dist2shore,
-                                     delim_whitespace=True, names=['longitude', 'latitude', 'distance'],
-                                     header=None, compression='bz2')
+    return pickm.pickle_wrapper(filename_dist2shore, pd.read_csv, data_folder + filename_dist2shore,
+                                delim_whitespace=True, names=['longitude', 'latitude', 'distance'],
+                                header=None, compression='bz2')
 
 
 def get_shoreline(resolution):
-    return pickm.load_pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
+    return pickm.pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
                               f'{data_folder}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
 
 
 def get_bathymetry():
     filename_gebco = 'GEBCO_2022_sub_ice_topo.nc'
-    return pickm.load_pickle_wrapper(filename_gebco, xr.load_dataset,
+    return pickm.pickle_wrapper(filename_gebco, xr.load_dataset,
                                      f'{data_folder}gebco_2022_sub_ice_topo/{filename_gebco}')
 
 
-def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None):
-    if not proximity_of_coast is None:
+def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_distances=False):
+    if with_distances:
+        return pickm.load_pickle(f'pickledumps/ds_gdp_subset_{proximity_of_coast}km_distances.pkl')
+    if proximity_of_coast is not None:
         ds_subset = pickm.load_pickle(f'pickledumps/{filename}subset_{proximity_of_coast}km.pkl')
         return ds_subset
-    return pickm.load_pickle_wrapper(filename, drifter_data_hourly, filename)
+    return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
 if __name__ == '__main__':

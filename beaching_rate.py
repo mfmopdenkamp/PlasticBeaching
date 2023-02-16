@@ -11,7 +11,7 @@ ds = ds_subset = pickm.load_pickle('pickledumps/ds_gdp_subset_10km_distances.pkl
 # select only death type == 3
 ds = ds.isel(traj=np.where(ds.type_death == 3)[0])
 
-df_shore = load_data.get_shoreline('h')
+df_shore = load_data.get_shoreline('f')
 
 ds_bath = load_data.get_bathymetry()
 

@@ -22,7 +22,12 @@ def load_pickle(pickle_name):
         raise FileNotFoundError('Pickle not found.')
 
 
-def load_pickle_wrapper(base_name, function, *args, **kwargs):
+def dump_pickle(pickle_name, obj):
+    with open(pickle_name, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def pickle_wrapper(base_name, function, *args, **kwargs):
     pickle_name = create_pickle_name(base_name)
     check_pickle_folder()
     try:
