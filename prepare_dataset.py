@@ -1,7 +1,7 @@
 import load_data
 import pickle_manager as pickm
 from create_subset import create_subset
-from find_shortest_distance import find_shortest_distance
+import analyzer
 import numpy as np
 from plotter import *
 import matplotlib.pyplot as plt
@@ -35,7 +35,7 @@ selected_gdf = df_shore[(df_shore.bounds['minx'] >= min_lon) & (df_shore.bounds[
 
 
 def add_distance_shoreline(ds):
-    ds['distance_shoreline'] = ('obs', find_shortest_distance(ds, selected_gdf))
+    ds['distance_shoreline'] = ('obs', analyzer.find_shortest_distance(ds, selected_gdf))
     return ds
 
 
@@ -60,25 +60,6 @@ plot_distances(ds_g)
 
 
 #%%
-def plot_last_distances(ds):
-    ids = np.unique(ds.ids)
-
-    last_hours = 20
-    max_drifters = 100
-    fig, ax = plt.subplots()
-    for i, ID in enumerate(tqdm(ids)):
-        ds_id = ds.isel(obs=np.where(ds.ids == ID)[0])
-        distance = ds_id.distance_shoreline.values[:-last_hours:-1]
-        plt.plot(np.arange(len(distance)), distance/1000, label=str(ID))
-        if i == max_drifters:
-            break
-
-    ax.set_xlabel('hours to last data point')
-    ax.set_ylabel('distance to the shoreline [km]')
-
-    plt.show()
-
-
 plot_last_distances(ds_g)
 
 

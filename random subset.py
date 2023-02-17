@@ -17,4 +17,4 @@ def load_random_subset():
 
 ds_subset = pickm.pickle_wrapper('random_subset_1', load_random_subset)
 
-analyzer.analyze_death_codes(ds_subset, verbose=True)
+analyzer.count_death_codes(ds_subset, verbose=True)

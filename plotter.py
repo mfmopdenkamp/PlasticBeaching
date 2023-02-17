@@ -1,15 +1,10 @@
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import load_data
-from matplotlib import colors, cm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+import numpy as np
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-from cartopy.io.img_tiles import OSM
-import cartopy.feature as cfeature
-from cartopy.io import shapereader
 from cartopy.io.img_tiles import Stamen
-from cartopy.io.img_tiles import GoogleTiles
-from matplotlib.transforms import offset_copy
+from tqdm import tqdm
 
 
 def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
@@ -38,7 +33,27 @@ def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=
 
 def plot_trajectories(ds):
     """given a dataset, plot the trajectories on a map"""
+
+
     pass
+
+
+def plot_last_distances(ds, last_hours=100, max_drifters=100):
+    ids = np.unique(ds.ids)
+
+    fig, ax = plt.subplots()
+    for i, ID in enumerate(tqdm(ids)):
+        ds_id = ds.isel(obs=np.where(ds.ids == ID)[0])
+        distance = ds_id.distance_shoreline.values[:-last_hours:-1]
+        plt.plot(np.arange(len(distance)), distance/1000, label=str(ID))
+        if i+1 == max_drifters:
+            break
+
+    ax.set_xlabel('hours to last data point')
+    ax.set_ylabel('distance to the shoreline [km]')
+    plt.title(f'Last {last_hours} hours of {i+1} drifters')
+
+    plt.show()
 
 
 if __name__ == '__main__':
