@@ -36,6 +36,11 @@ def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=
     return fig, ax
 
 
+def plot_trajectories(ds):
+    """given a dataset, plot the trajectories on a map"""
+    pass
+
+
 if __name__ == '__main__':
     gdp = load_data.drifter_data_six_hourly(30000)
 
