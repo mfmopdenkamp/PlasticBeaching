@@ -28,21 +28,24 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     return shortest_distances
 
 
-def count_death_codes(ds, verbose=False):
-    death_types = np.unique(ds.type_death)
-    n_death_types = np.zeros(len(death_types))
-    for i_death, death_type in enumerate(death_types):
-        n_death_types[i_death] = sum(ds.type_death == death_type)
+def determine_beaching_event_distance(ds):
+    trapping_rows = np.empty(0, dtype=int)
+    for ID in ds.ID:
+        rows = np.where(ds.ids == ID)[0]
+        distance = ds.distance_shoreline[rows]
+        velocity = np.hypot(ds.vn[rows], ds.ve[rows])
 
-    if verbose:
-        fig, ax = plt.subplots()
-        ax.bar(death_types, n_death_types)
-        ax.set_xlabel('death type')
-        ax.set_ylabel('# drifters')
-        plt.xticks(death_types)
-        plt.show()
+        count = 0
+        threshold_h = 4
+        for i, (d, v) in enumerate(zip(distance, velocity)):
+            if d < 500 and v < 0.1:
+                count += 1
+            else:
+                if count >= threshold_h:
+                    trapping_rows = np.append(trapping_rows, rows[i - count:i])
+                count = 0
 
-    return death_types, n_death_types
+    return trapping_rows
 
 
 if __name__ == '__main__':

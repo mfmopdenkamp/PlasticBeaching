@@ -15,6 +15,8 @@ def load_random_subset():
     return ds.isel(traj=traj, obs=obs)
 
 
-ds_subset = pickm.pickle_wrapper('random_subset_1', load_random_subset)
+ds = pickm.pickle_wrapper('random_subset_1', load_random_subset)
 
-analyzer.count_death_codes(ds_subset, verbose=True)
+plot_death_type_bar(ds)
+
+plot_trajectories_death_type(ds)

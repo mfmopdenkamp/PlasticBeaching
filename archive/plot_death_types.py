@@ -34,5 +34,5 @@ for i_dt, death_type in enumerate(death_types):
                transform=crs.PlateCarree(), label=death_type)
 
 ax.coastlines()
-ax.legend(markersize=6)
+ax.legend()
 plt.show()

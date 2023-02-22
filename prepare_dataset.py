@@ -65,36 +65,13 @@ plot_last_distances(ds_g)
 
 def plot_many(ds):
     
-    fig, ax = plt.subplots()
-    ax.hist(np.hypot(ds.ve, ds.vn), bins=50)
-    ax.set_xlabel('velocity [m/s]')
-    ax.set_ylabel('# data points')
-    plt.show()
+    plot_velocity_hist(ds)
 
-    fig, ax = plt.subplots()
-    ax.hist(ds.distance_shoreline, bins=50)
-    ax.set_xlabel('distance to the shoreline [m]')
-    ax.set_ylabel('# data points')
-    plt.show()
+    plot_distance_hist(ds)
     
-    fig, ax = plt.subplots()
-    ax.scatter(ds.distance_shoreline, np.hypot(ds.ve, ds.vn))
-    ax.set_ylabel('velocity [m/s]')
-    ax.set_xlabel('distance to the shoreline [m]')
-    plt.semilogy()
-    plt.show()
+    plot_velocity_distance(ds)
     
-    death_types = np.unique(ds.type_death)
-    n_death_types = np.zeros(len(death_types))
-    for i_death, death_type in enumerate(death_types):
-        n_death_types[i_death] = sum(ds.type_death == death_type)
-    
-    fig, ax = plt.subplots()
-    ax.bar(death_types, n_death_types)
-    ax.set_xlabel('death type')
-    ax.set_ylabel('# drifters')
-    plt.xticks(death_types)
-    plt.show()
+    plot_death_type_bar(ds)
     
     
 #%% select only death type == 1

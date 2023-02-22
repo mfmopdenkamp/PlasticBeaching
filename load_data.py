@@ -3,12 +3,36 @@ import geopandas as gpd
 import pickle_manager as pickm
 import xarray as xr
 import time
+import os
 
-data_folder = 'data/'
+
+def find_data_directory():
+    data_dir_name = 'data/'
+    new_dir_name = data_dir_name
+    max_levels = 3
+    level = 0
+    while not os.path.exists(new_dir_name) and level <= max_levels:
+        level += 1
+        new_dir_name = ''.join(['../', new_dir_name])
+
+    if level > max_levels:
+        print('No data folder found. Creating new one?')
+        answer = ''
+        while answer not in ['y', 'n']:
+            answer = input('[y]/[n]?')
+        if answer == 'y':
+            os.mkdir(data_dir_name)
+    else:
+        data_dir_name = new_dir_name
+
+    return data_dir_name
+
+
+data_dir_name = find_data_directory()
 
 
 def drifter_data_hourly(load_into_memory=True, filename='gdp_v2.00.nc'):
-    f = data_folder + filename
+    f = data_dir_name + filename
     if load_into_memory:
         ds = xr.load_dataset(f, decode_cf=True, decode_times=False)
     else:
@@ -26,7 +50,7 @@ def drifter_data_six_hourly(nrows=None, parts=(1, 2, 3, 4)):
     """
 
 
-    directory = data_folder + 'gdp_six_hourly/'
+    directory = data_dir_name + 'gdp_six_hourly/'
     with open(f'{directory}header_data.txt', 'rt') as f:
         data_header = f.readline().split(',')
 
@@ -58,7 +82,7 @@ def drifter_data_six_hourly(nrows=None, parts=(1, 2, 3, 4)):
 
 def drifter_metadata(nrows=None, parts=(1, 2, 3, 4)):
 
-    directory = data_folder + 'gdp_metadata/'
+    directory = data_dir_name + 'gdp_metadata/'
     with open(f'{directory}header_metadata.txt', 'rt') as f:
         data_header = f.readline().split(',')
 
@@ -82,20 +106,20 @@ def drifter_metadata(nrows=None, parts=(1, 2, 3, 4)):
 
 def get_raster_distance_to_shore_04deg():
     filename_dist2shore = 'dist2coast.txt.bz2'
-    return pickm.pickle_wrapper(filename_dist2shore, pd.read_csv, data_folder + filename_dist2shore,
+    return pickm.pickle_wrapper(filename_dist2shore, pd.read_csv, data_dir_name + filename_dist2shore,
                                 delim_whitespace=True, names=['longitude', 'latitude', 'distance'],
                                 header=None, compression='bz2')
 
 
 def get_shoreline(resolution):
     return pickm.pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
-                              f'{data_folder}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
+                              f'{data_dir_name}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
 
 
 def get_bathymetry():
     filename_gebco = 'GEBCO_2022_sub_ice_topo.nc'
     return pickm.pickle_wrapper(filename_gebco, xr.load_dataset,
-                                     f'{data_folder}gebco_2022_sub_ice_topo/{filename_gebco}')
+                                     f'{data_dir_name}gebco_2022_sub_ice_topo/{filename_gebco}')
 
 
 def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_distances=False):

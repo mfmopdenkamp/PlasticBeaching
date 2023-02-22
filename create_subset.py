@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import time
 
 
-def interpolate_drifter_location(df_shore, ds_drifter):
+def interpolate_drifter_location(df_shore, ds_drifter, method='linear'):
     # Drifter locations (longitude and latitude)
     drifter_lon = ds_drifter.longitude.values
     drifter_lat = ds_drifter.latitude.values
@@ -20,7 +20,7 @@ def interpolate_drifter_location(df_shore, ds_drifter):
 
     # Interpolate the drifter locations onto the raster
     start = time.time()
-    drifter_dist = griddata((shore_lon, shore_lat), shore_dist, (drifter_lon, drifter_lat), method='nearest')
+    drifter_dist = griddata((shore_lon, shore_lat), shore_dist, (drifter_lon, drifter_lat), method=method)
     print(f'Interpolation done. Elapsed time {np.round(time.time() - start, 2)}s')
 
     return drifter_dist

@@ -2,14 +2,19 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import load_data
 import numpy as np
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-from cartopy.io.img_tiles import Stamen
+
 from tqdm import tqdm
+
+
+death_type_colors = {0: 'r', 1: 'g', 2: 'b', 3: 'y', 4: 'c', 5: 'm', 6: 'aquamarine'}
 
 
 def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
     """ This function sets up a figure (fig and ax) for plotting the data in the Galapagos region.
     This set-up contains a background terrain map of the Galapagos region, extending from lat (-2,1) and lon (-93, -88.5)"""
+    from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+    from cartopy.io.img_tiles import Stamen
+
     fig = plt.figure(figsize=size, dpi=300)
 
     tiler = Stamen('terrain-background')
@@ -31,11 +36,35 @@ def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=
     return fig, ax
 
 
-def plot_trajectories(ds):
+def plot_trajectories_death_type(ds):
     """given a dataset, plot the trajectories on a map"""
+    plt.figure(figsize=(12, 8), dpi=300)
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    for death_type in np.unique(ds.type_death):
+        traj = np.where(ds.type_death == death_type)[0]
+        ds_traj = ds.isel(obs=np.where(np.isin(ds.ids, ds.ID[traj]))[0], traj=traj)
+        lat = ds_traj.latitude
+        lon = ds_traj.longitude
+        ax.scatter(lon, lat, transform=ccrs.PlateCarree(), s=2, c=death_type_colors[death_type])
+
+    ax.coastlines()
+    ax.set_ylabel('Latitude N')
+    ax.set_xlabel('Longitude E')
+    plt.tight_layout()
+    plt.show()
 
 
-    pass
+def plot_map_distances(ds, title=''):
+    fig, ax = get_sophie_subplots(extent=(-92, -88.5, -1.75, 1), title=title)
+    pcm = ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(),
+                     c=ds.distance_shoreline, cmap='inferno')
+    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), c='k', s=0.4,
+               label='all', alpha=0.8)
+    cb = fig.colorbar(pcm, ax=ax)
+    cb.set_label('Distance to shore')
+    ax.set_ylabel('Latitude N')
+    ax.set_xlabel('Longitude E')
+    plt.show(bbox_inches='tight')
 
 
 def plot_last_distances(ds, last_hours=100, max_drifters=100):
@@ -54,6 +83,48 @@ def plot_last_distances(ds, last_hours=100, max_drifters=100):
     plt.title(f'Last {last_hours} hours of {i+1} drifters')
 
     plt.show()
+
+
+def plot_velocity_hist(ds):
+    fig, ax = plt.subplots()
+    ax.hist(np.hypot(ds.ve, ds.vn), bins=50)
+    ax.set_xlabel('velocity [m/s]')
+    ax.set_ylabel('# data points')
+    plt.show()
+
+
+def plot_distance_hist(ds):
+    fig, ax = plt.subplots()
+    ax.hist(ds.distance_shoreline, bins=50)
+    ax.set_xlabel('distance to the shoreline [m]')
+    ax.set_ylabel('# data points')
+    plt.show()
+
+
+def plot_death_type_bar(ds):
+    death_types = np.unique(ds.type_death)
+    n_death_types = np.zeros(len(death_types))
+    for i_death, death_type in enumerate(death_types):
+        n_death_types[i_death] = sum(ds.type_death == death_type)
+
+    fig, ax = plt.subplots()
+    ax.bar(death_types, n_death_types, color=death_type_colors.values())
+    ax.set_xlabel('death type')
+    ax.set_ylabel('# drifters')
+    plt.xticks(death_types)
+    plt.show()
+
+
+def plot_velocity_distance(ds):
+    fig, ax = plt.subplots()
+    ax.scatter(ds.distance_shoreline, np.hypot(ds.ve, ds.vn))
+    ax.set_ylabel('velocity [m/s]')
+    ax.set_xlabel('distance to the shoreline [m]')
+    plt.semilogy()
+    plt.show()
+
+
+
 
 
 if __name__ == '__main__':
