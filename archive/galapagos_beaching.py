@@ -7,7 +7,7 @@ from analyzer import *
 pickle_name = pickle_manager.create_pickle_name('ds_galapagos_distance')
 ds_g = pickm.load_pickle(pickle_name)
 
-trapping_rows = determine_beaching_event_distance(ds_g)
+trapping_rows = determine_trapping_event(ds_g)
 
 ds_g_s = ds_g.isel(obs=trapping_rows)
 plot_map_distances(ds_g_s, title='Galapagos, beached instances')

@@ -2,6 +2,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 import geopandas as gpd
 from tqdm import tqdm
+import time
+from scipy.interpolate import griddata
+
+
+def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
+    # Drifter locations (longitude and latitude)
+    drifter_lon = ds_drifter.longitude.values
+    drifter_lat = ds_drifter.latitude.values
+
+    # Shore distances (longitude, latitude and distance to the shore)
+    raster_lon = df_raster.longitude.values
+    raster_lat = df_raster.latitude.values
+    raster_dist = df_raster.distance.values
+
+    # Interpolate the drifter locations onto the raster
+    start = time.time()
+    drifter_dist = griddata((raster_lon, raster_lat), raster_dist, (drifter_lon, drifter_lat), method=method)
+    print(f'Interpolation done. Elapsed time {np.round(time.time() - start, 2)}s')
+
+    return drifter_dist
 
 
 def find_shortest_distance(ds_gdp, gdf_shoreline):
@@ -16,7 +36,7 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     gdf_gdp.to_crs(gdf_shoreline.crs, inplace=True)
 
     dtype = np.float32
-    init_distance = np.finfo(np.float32).max
+    init_distance = np.finfo(dtype).max
     shortest_distances = np.ones(len(gdf_gdp), dtype=dtype) * init_distance
 
     for i, point in enumerate(tqdm(gdf_gdp.geometry)):
@@ -28,28 +48,23 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     return shortest_distances
 
 
-def determine_beaching_event_distance(ds):
-    trapping_rows = np.empty(0, dtype=int)
-    for ID in ds.ID:
-        rows = np.where(ds.ids == ID)[0]
-        distance = ds.distance_shoreline[rows]
-        velocity = np.hypot(ds.vn[rows], ds.ve[rows])
+def determine_trapping_event(distance, velocity, max_distance_m, max_velocity_mps):
+    if len(distance) != len(velocity):
+        raise ValueError('distance and velocity array must have the same length!')
 
-        count = 0
-        threshold_h = 4
-        for i, (d, v) in enumerate(zip(distance, velocity)):
-            if d < 500 and v < 0.1:
-                count += 1
-            else:
-                if count >= threshold_h:
-                    trapping_rows = np.append(trapping_rows, rows[i - count:i])
-                count = 0
+    trapping_rows = np.zeros(len(distance), dtype=bool)
+
+    count = 0
+    threshold_h = 4
+    for i, (d, v) in enumerate(zip(distance, velocity)):
+        if d < max_distance_m and v < max_velocity_mps:
+            count += 1
+
+            if count >= threshold_h:
+                trapping_rows[i] = True
+
+        else:
+            count = 0
 
     return trapping_rows
 
-
-if __name__ == '__main__':
-    import load_data
-    ds = load_data.get_ds_drifters(proximity_of_coast=10)
-
-    count_death_codes(ds, verbose=True)

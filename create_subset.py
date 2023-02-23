@@ -2,28 +2,9 @@ import pandas as pd
 import load_data
 import pickle
 import pickle_manager as pickm
-from scipy.interpolate import griddata
 import numpy as np
 import matplotlib.pyplot as plt
-import time
-
-
-def interpolate_drifter_location(df_shore, ds_drifter, method='linear'):
-    # Drifter locations (longitude and latitude)
-    drifter_lon = ds_drifter.longitude.values
-    drifter_lat = ds_drifter.latitude.values
-
-    # Shore distances (longitude, latitude and distance to the shore)
-    shore_lon = df_shore.longitude.values
-    shore_lat = df_shore.latitude.values
-    shore_dist = df_shore.distance.values
-
-    # Interpolate the drifter locations onto the raster
-    start = time.time()
-    drifter_dist = griddata((shore_lon, shore_lat), shore_dist, (drifter_lon, drifter_lat), method=method)
-    print(f'Interpolation done. Elapsed time {np.round(time.time() - start, 2)}s')
-
-    return drifter_dist
+from analyzer import interpolate_drifter_location
 
 
 def create_subset(proximity, filename='gdp_v2.00.nc'):
@@ -35,8 +16,8 @@ def create_subset(proximity, filename='gdp_v2.00.nc'):
     ds = load_data.get_ds_drifters(filename=filename)
 
     # Interpolate the drifter data onto the raster with distances to the shoreline (or load from pickle. Operation on full dataset cost 812s on my laptop)
-    drif_dist_filename = 'drifter_distances_interpolated_0.04deg_raster'
-    drifter_dist_approx = pickm.pickle_wrapper(drif_dist_filename, interpolate_drifter_location, df_raster, ds)
+    drif_aprox_dist_filename = 'drifter_distances_interpolated_0.04deg_raster'
+    drifter_dist_approx = pickm.pickle_wrapper(drif_aprox_dist_filename, interpolate_drifter_location, df_raster, ds)
 
     # Create a subset of the drifter data that is within a certain proximity of the shoreline
     close_to_shore = drifter_dist_approx < proximity
