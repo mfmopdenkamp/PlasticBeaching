@@ -1,7 +1,6 @@
-import pandas as pd
 import load_data
 import pickle
-import pickle_manager as pickm
+import picklemanager as pickm
 import numpy as np
 import matplotlib.pyplot as plt
 from analyzer import interpolate_drifter_location
@@ -36,7 +35,7 @@ if __name__ == '__main__':
     ds_subset = create_subset(proximity)
 
     # Write to pickle file for easy use.
-    pickle_name = pickm.create_pickle_name(f'gdp_subset_{proximity}km')
+    pickle_name = pickm.create_pickle_path(f'gdp_subset_{proximity}km')
     with open(pickle_name, 'wb') as f:
         pickle.dump(ds_subset, f)
 

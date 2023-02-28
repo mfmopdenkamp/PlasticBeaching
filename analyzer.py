@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import geopandas as gpd
 from tqdm import tqdm
@@ -18,8 +17,9 @@ def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
 
     # Interpolate the drifter locations onto the raster
     start = time.time()
+    print('Started interpolation...', end='')
     drifter_dist = griddata((raster_lon, raster_lat), raster_dist, (drifter_lon, drifter_lat), method=method)
-    print(f'Interpolation done. Elapsed time {np.round(time.time() - start, 2)}s')
+    print(f'Done. Elapsed time {np.round(time.time() - start, 2)}s')
 
     return drifter_dist
 
@@ -48,11 +48,11 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     return shortest_distances
 
 
-def determine_trapping_event(distance, velocity, max_distance_m, max_velocity_mps):
+def determine_beaching_event(distance, velocity, max_distance_m, max_velocity_mps):
     if len(distance) != len(velocity):
         raise ValueError('distance and velocity array must have the same length!')
 
-    trapping_rows = np.zeros(len(distance), dtype=bool)
+    beaching_rows = np.zeros(len(distance), dtype=bool)
 
     count = 0
     threshold_h = 4
@@ -61,10 +61,10 @@ def determine_trapping_event(distance, velocity, max_distance_m, max_velocity_mp
             count += 1
 
             if count >= threshold_h:
-                trapping_rows[i] = True
+                beaching_rows[i] = True
 
         else:
             count = 0
 
-    return trapping_rows
+    return beaching_rows
 

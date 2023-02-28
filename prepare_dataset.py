@@ -1,11 +1,8 @@
-import load_data
-import pickle_manager as pickm
+import picklemanager as pickm
 from create_subset import create_subset
 import analyzer
-import numpy as np
 from plotter import *
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 
 min_lon = -92.5
 max_lon = -88.5

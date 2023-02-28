@@ -1,6 +1,6 @@
 import pandas as pd
 import geopandas as gpd
-import pickle_manager as pickm
+import picklemanager as pickm
 import xarray as xr
 import time
 import os

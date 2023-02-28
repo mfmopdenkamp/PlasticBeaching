@@ -1,7 +1,6 @@
 import load_data
 import numpy as np
-import pickle_manager as pickm
-import matplotlib.pyplot as plt
+import picklemanager as pickm
 from shapely.geometry import Point
 from tqdm import tqdm
 

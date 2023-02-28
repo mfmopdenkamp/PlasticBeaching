@@ -1,4 +1,4 @@
-import pickle_manager as pickm
+import picklemanager as pickm
 import load_data
 
 

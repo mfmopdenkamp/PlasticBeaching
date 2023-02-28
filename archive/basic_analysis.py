@@ -1,8 +1,4 @@
-import load_data
-import numpy as np
-import matplotlib.pyplot as plt
 from plotter import *
-from tqdm import tqdm
 
 ds = load_data.get_ds_drifters()
 
