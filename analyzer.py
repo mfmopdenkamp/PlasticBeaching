@@ -68,3 +68,60 @@ def determine_beaching_event(distance, velocity, max_distance_m, max_velocity_mp
 
     return beaching_rows
 
+
+def end_date_2_years(ds_end_date):
+    return ds_end_date.values.astype('datetime64[Y]').astype(int) + 1970
+
+
+def find_index_last_coord(ds):
+    index_last_coord = []
+    ids = ds.ids.values
+
+    id_prev = ids[0]
+    for i, ID in enumerate(ids):
+        if ID != id_prev:
+            index_last_coord.append(i-1)
+        id_prev = ID
+    index_last_coord.append(ids[-1])
+
+    return index_last_coord
+
+
+def days_without_drogue(ds):
+
+    drogue_lost_dates = ds.drogue_lost_date.values
+    end_date = ds.end_date.values
+
+    days = []
+    for dld, ed in zip(drogue_lost_dates, end_date):
+        try:
+            days.append((ed - dld) / np.timedelta64(1, 'D'))
+        except:
+            pass
+
+    days = np.array(days)
+    return days
+
+
+def drogue_presence(ds):
+
+    drogue_presence = np.ones(len(ds.obs), dtype=bool)
+    drogue_lost_dates = ds.drogue_lost_date.values
+
+    ids = ds.ids.values
+    IDs = ds.ID.values
+    for i_traj, (drogue_lost_date, ID) in enumerate(zip(drogue_lost_dates, IDs)):
+        # if drogue lost date is not known, assume it is always present
+        if not np.isnat(drogue_lost_date):
+            obs = np.where(ids == ID)[0]
+            times = ds.time.values[obs]
+            drogue_presence[obs] = np.where(times > drogue_lost_date, False, True)
+
+    return drogue_presence
+
+
+if __name__ == '__main__':
+    import load_data
+    ds = load_data.get_ds_drifters('gdp_random_subset_1')
+
+    drogue_presence = drogue_presence(ds)

@@ -36,7 +36,7 @@ def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=
     return fig, ax
 
 
-def plot_trajectories_death_type(ds):
+def plot_trajectories_death_type(ds, s=2):
     """given a dataset, plot the trajectories on a map"""
     plt.figure(figsize=(12, 8), dpi=300)
     ax = plt.axes(projection=ccrs.PlateCarree())
@@ -45,7 +45,7 @@ def plot_trajectories_death_type(ds):
         ds_traj = ds.isel(obs=np.where(np.isin(ds.ids, ds.ID[traj]))[0], traj=traj)
         lat = ds_traj.latitude
         lon = ds_traj.longitude
-        ax.scatter(lon, lat, transform=ccrs.PlateCarree(), s=2, c=death_type_colors[death_type])
+        ax.scatter(lon, lat, transform=ccrs.PlateCarree(), s=s, c=death_type_colors[death_type])
 
     ax.coastlines()
     ax.set_ylabel('Latitude N')
@@ -102,10 +102,7 @@ def plot_distance_hist(ds):
 
 
 def plot_death_type_bar(ds):
-    death_types = np.unique(ds.type_death)
-    n_death_types = np.zeros(len(death_types))
-    for i_death, death_type in enumerate(death_types):
-        n_death_types[i_death] = sum(ds.type_death == death_type)
+    death_types, n_death_types = np.unique(ds.type_death, return_counts=True)
 
     fig, ax = plt.subplots()
     ax.bar(death_types, n_death_types, color=death_type_colors.values())
@@ -124,7 +121,18 @@ def plot_velocity_distance(ds):
     plt.show()
 
 
+def plot_uniques_bar(ds_array, xlabel):
+    unique_values, counts = np.unique(ds_array, return_counts=True)
+    n = len(unique_values)
 
+    fig, ax = plt.subplots(figsize=(min(18, max(n, 8)), 8))
+    ax.bar(np.arange(n), counts)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel('# drifters')
+    plt.xticks(np.arange(n))
+    ax.set_xticklabels(unique_values, rotation=45, ha="right")
+    plt.tight_layout()
+    plt.show()
 
 
 if __name__ == '__main__':

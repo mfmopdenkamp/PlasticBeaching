@@ -1,41 +1,42 @@
 import matplotlib.pyplot as plt
-import cartopy.crs as crs
 import numpy as np
-import picklemanager as pickm
+
+import analyzer
+import plotter
 import load_data
 
-file_name = pickm.create_pickle_path('gdp')
-ds = load_data.get_ds_drifters()
 
-fig2 = plt.figure(dpi=300)
-ax = plt.axes(projection=crs.PlateCarree())
+ds = load_data.get_ds_drifters('gdp_random_subset_1')
 
-# ax.scatter(ds.longitude.values, ds.latitude.values, color='r', s=3,
-#            transform=crs.PlateCarree(), label='all')
-ax.scatter(ds.longitude.values, ds.latitude.values, color='b', s=3,
-           transform=crs.PlateCarree(), label='within 10km')
+for item in ds.data_vars.items():
+    print(f'{item[0]} :\t {ds[item[0]].attrs}\n')
+    # if ds[item[0]].dims[0] == 'traj':
+    #     try:
+    #         plot_uniques_bar(ds[item[0]], xlabel=ds[item[0]].attrs['long_name'])
+    #     except:
+    #         pass
 
-ax.coastlines()
-ax.legend()
+plotter.plot_death_type_bar(ds)
+
+times = analyzer.days_without_drogue(ds)
+
+plt.hist(times[np.where((times < 1000) * (times > 0))], bins=100)
+plt.xlabel('time lost drogue [days]')
+# plt.xlim([0, 100])
+plt.ylabel('# drifters')
+# plt.semilogy()
 plt.show()
 
-print(ds.dims)
 
-print(ds.data_vars)
+def find_last_points(ds):
+    index_last_points = []
+    id_prev = ds.ID.values[0]
+    for i, ID in enumerate(ds.ids.values):
+        if ID != id_prev:
+            index_last_points.append(i-1)
+        id_prev = ID
+    return index_last_points
 
-print(ds.attrs)
 
-print(ds.obs.shape[0])
-
-years = ds.end_date.values.astype('datetime64[Y]').astype(int) + 1970
-for i, (year, ed) in enumerate(zip(years, ds.end_date.values)):
-    if year > 2020:
-        print(ed)
-
-death_type, dt_counts = np.unique(ds.type_death.values,
-                                  return_counts=True)
-plt.figure()
-plt.bar(death_type, dt_counts)
-plt.xlabel('Death Type')
-plt.ylabel('Count')
-plt.show()
+last_points = find_last_points(ds)
+plotter.plot_trajectories_death_type(ds.isel(obs=last_points), s=5)

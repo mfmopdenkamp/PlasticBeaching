@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import picklemanager as pickm
 from plotter import *
-from analyzer import determine_beaching_event, interpolate_drifter_location
+from analyzer import *
 import time
 from tqdm import tqdm
 
@@ -24,9 +24,11 @@ def load_random_subset():
 ds = pickm.pickle_wrapper('gdp_random_subset_1', load_random_subset)
 # ds = load_data.get_ds_drifters(filename='gdp_v2.00.nc_approx_dist_nearest')
 
-# plot_death_type_bar(ds)
-#
-# plot_trajectories_death_type(ds)
+
+plot_death_type_bar(ds)
+
+last_points = find_index_last_coord(ds)
+plot_trajectories_death_type(ds.isel(obs=last_points), s=40)
 
 
 def tag_drifters_beached(ds, distance_threshold=1000):
@@ -62,8 +64,8 @@ for i, threshold in enumerate(tqdm(thresholds)):
     TAGS[i, :] = tags
 
 for i in range(len(thresholds)):
-    n_ones = np.count_nonzero(TAGS[i, :] == 1)
-    n_twos = np.count_nonzero(TAGS[i, :] == 2)
+    n_ones = np.sum(TAGS[i, :] == 1)
+    n_twos = np.sum(TAGS[i, :] == 2)
     probabilities[i] = n_ones / (n_ones+n_twos)
 
 plt.figure()
