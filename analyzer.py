@@ -1,8 +1,25 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import geopandas as gpd
 from tqdm import tqdm
 import time
 from scipy.interpolate import griddata
+
+
+def end_date_2_years(ds_end_date):
+    return ds_end_date.values.astype('datetime64[Y]').astype(int) + 1970
+
+
+def find_index_last_obs_traj(ds):
+    return np.append(np.where(np.diff(ds.ids.values))[0], -1)
+
+
+def obs_from_traj(ds, traj):
+    return np.where(np.isin(ds.ids.values, ds.ID.values[traj]))[0]
+
+
+def traj_from_obs(ds, obs):
+    return np.where(np.isin(ds.ID.values, np.unique(ds.ids.values[obs])))[0]
 
 
 def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
@@ -69,24 +86,6 @@ def determine_beaching_event(distance, velocity, max_distance_m, max_velocity_mp
     return beaching_rows
 
 
-def end_date_2_years(ds_end_date):
-    return ds_end_date.values.astype('datetime64[Y]').astype(int) + 1970
-
-
-def find_index_last_coord(ds):
-    index_last_coord = []
-    ids = ds.ids.values
-
-    id_prev = ids[0]
-    for i, ID in enumerate(ids):
-        if ID != id_prev:
-            index_last_coord.append(i-1)
-        id_prev = ID
-    index_last_coord.append(ids[-1])
-
-    return index_last_coord
-
-
 def days_without_drogue(ds):
 
     drogue_lost_dates = ds.drogue_lost_date.values
@@ -101,6 +100,53 @@ def days_without_drogue(ds):
 
     days = np.array(days)
     return days
+
+
+def tag_drifters_beached(ds, distance_threshold=1000):
+
+    tags = np.zeros(len(ds.traj), dtype=int)
+
+    for i, traj in enumerate(ds.traj):
+        if ds.type_death[traj] == 1:
+            tags[i] = 1
+        else:
+            # select a subset of a single trajectory
+            obs = obs_from_traj(ds, traj)
+            ds_i = ds.isel(obs=obs, traj=traj)
+
+            beaching_rows = determine_beaching_event(ds_i.aprox_distance_shoreline.values[-10:],
+                                                     np.hypot(ds_i.vn.values[-10:], ds_i.ve.values[-10:]),
+                                                     distance_threshold, 0.1)
+
+            if beaching_rows[-1]:
+                print(f'Found beaching of drifter {ds_i.ID.values}')
+                tags[i] = 1
+            elif min(ds_i.aprox_distance_shoreline.values) < distance_threshold:
+                tags[i] = 2
+
+    return tags
+
+
+def probability_distance_sophie(ds, verbose=True):
+    thresholds = np.logspace(-1, 6, num=15, base=4)
+    TAGS = np.empty((len(thresholds), len(ds.traj)), dtype=int)
+    probabilities = np.zeros(len(thresholds), dtype=np.float32)
+    for i, threshold in enumerate(tqdm(thresholds)):
+        tags = tag_drifters_beached(ds, distance_threshold=threshold)
+        TAGS[i, :] = tags
+
+    for i in range(len(thresholds)):
+        n_ones = np.sum(TAGS[i, :] == 1)
+        n_twos = np.sum(TAGS[i, :] == 2)
+        probabilities[i] = n_ones / (n_ones + n_twos)
+
+    if verbose:
+        plt.figure()
+        plt.plot(thresholds / 1000, probabilities)
+        plt.xlabel('distance threshold [km]')
+        plt.ylabel('probability to find beaching')
+        plt.semilogx()
+        plt.show()
 
 
 def drogue_presence(ds):
@@ -122,6 +168,13 @@ def drogue_presence(ds):
 
 if __name__ == '__main__':
     import load_data
+    import plotter
     ds = load_data.get_ds_drifters('gdp_random_subset_1')
 
+    last_coords = find_index_last_obs_traj(ds)
+
     drogue_presence = drogue_presence(ds)
+    obs = np.where(ds.latitude > 0)[0]
+    traj = traj_from_obs(ds, obs)
+    plotter.plot_death_type_bar(ds)
+    plotter.plot_trajectories_death_type(ds.isel(traj=traj, obs=obs))

@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import load_data
 import numpy as np
-
 from tqdm import tqdm
 
 
@@ -54,7 +53,7 @@ def plot_trajectories_death_type(ds, s=2):
     plt.show()
 
 
-def plot_map_distances(ds, title=''):
+def plot_galapagos_map_distances(ds, title=''):
     fig, ax = get_sophie_subplots(extent=(-92, -88.5, -1.75, 1), title=title)
     pcm = ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(),
                      c=ds.distance_shoreline, cmap='inferno')
