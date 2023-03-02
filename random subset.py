@@ -33,3 +33,20 @@ close_2_shore = ds.aprox_distance_shoreline < 10
 obs = np.where(close_2_shore)[0]
 
 plot_trajectories_death_type(ds.isel(obs=obs, traj=traj_from_obs(ds, obs)))
+
+test1 = np.array([0,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1,0], dtype=bool)
+test2 = np.array([1,0,1,0,1,1,0,0,1], dtype=bool)
+
+def get_event_indexes(mask):
+    mask = mask.astype(int)
+    i_start = np.where(np.diff(mask) == 1)[0] + 1
+    i_end = np.where(np.diff(mask) == -1)[0] + 1
+
+    if mask[0] and not mask[1]:
+        i_start = np.insert(i_start, 0, 0)
+    if mask[-1]:
+        i_end = np.append(i_end, len(mask))
+    return i_start, i_end
+
+i_s, i_e = get_event_indexes(close_2_shore)
+
