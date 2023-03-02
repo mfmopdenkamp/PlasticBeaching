@@ -22,6 +22,10 @@ def traj_from_obs(ds, obs):
     return np.where(np.isin(ds.ID.values, np.unique(ds.ids.values[obs])))[0]
 
 
+def get_absolute_velocity(ds):
+    return np.hypot(ds.vn.values, ds.ve.values)
+
+
 def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
     # Drifter locations (longitude and latitude)
     drifter_lon = ds_drifter.longitude.values
@@ -43,10 +47,11 @@ def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
 
 def find_shortest_distance(ds_gdp, gdf_shoreline):
     """"Calculates distance from shoreline (Polygons) to drifters for every drifters location (Point)"""
-
+    lats = ds_gdp.latitude.values
+    lons = ds_gdp.longitude.values
     # create geopandas dataframe from xarray dataset
-    gdf_gdp = gpd.GeoDataFrame({'latitude': ds_gdp.latitude, 'longitude': ds_gdp.longitude},
-                              geometry=gpd.points_from_xy(ds_gdp.longitude, ds_gdp.latitude),
+    gdf_gdp = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
+                              geometry=gpd.points_from_xy(lons, lats),
                               crs='epsg:4326')
 
     gdf_shoreline.to_crs(crs=3857, inplace=True)
@@ -65,19 +70,19 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     return shortest_distances
 
 
-def determine_beaching_event(distance, velocity, max_distance_m, max_velocity_mps):
+def determine_beaching_event(distance, velocity, max_distance_m, max_velocity_mps, threshold_count=4):
     if len(distance) != len(velocity):
         raise ValueError('distance and velocity array must have the same length!')
 
     beaching_rows = np.zeros(len(distance), dtype=bool)
 
     count = 0
-    threshold_h = 4
+    threshold_count = threshold_count
     for i, (d, v) in enumerate(zip(distance, velocity)):
         if d < max_distance_m and v < max_velocity_mps:
             count += 1
 
-            if count >= threshold_h:
+            if count >= threshold_count:
                 beaching_rows[i] = True
 
         else:

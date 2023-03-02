@@ -37,6 +37,7 @@ plot_trajectories_death_type(ds.isel(obs=obs, traj=traj_from_obs(ds, obs)))
 test1 = np.array([0,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1,0], dtype=bool)
 test2 = np.array([1,0,1,0,1,1,0,0,1], dtype=bool)
 
+
 def get_event_indexes(mask):
     mask = mask.astype(int)
     i_start = np.where(np.diff(mask) == 1)[0] + 1
@@ -48,5 +49,19 @@ def get_event_indexes(mask):
         i_end = np.append(i_end, len(mask))
     return i_start, i_end
 
-i_s, i_e = get_event_indexes(close_2_shore)
+
+event_starts, event_ends = get_event_indexes(close_2_shore)
+
+if len(event_starts) != len(event_ends):
+    raise ValueError('"event starts" and "event ends" must have equal lengths!')
+
+beaching_flags = np.zeros(len(event_starts), dtype=bool)
+for i, (i_s, i_e) in enumerate(zip(event_starts, event_ends)):
+
+    distance = np.zeros(i_e-i_s, dtype=int)
+    velocity = get_absolute_velocity(ds.isel(obs=slice(i_s, i_e)))
+    beaching_rows = determine_beaching_event(distance, velocity, max_distance_m=1, max_velocity_mps=0.01)
+    if beaching_rows.sum() > 0:
+        beaching_flags[i] = True
+
 
