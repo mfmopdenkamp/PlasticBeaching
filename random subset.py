@@ -2,6 +2,7 @@ import load_data
 import numpy as np
 import matplotlib.pyplot as plt
 import picklemanager as pickm
+import pandas as pd
 from plotter import *
 from analyzer import *
 import xarray as xr
@@ -27,16 +28,6 @@ def load_random_subset():
 
 ds = pickm.pickle_wrapper('gdp_random_subset_5', load_random_subset)
 
-plot_death_type_bar(ds)
-
-close_2_shore = ds.aprox_distance_shoreline < 10
-obs = np.where(close_2_shore)[0]
-
-plot_trajectories_death_type(ds.isel(obs=obs, traj=traj_from_obs(ds, obs)))
-
-test1 = np.array([0,1,1,1,0,0,1,1,1,0,0,1,1,1,1,1,0], dtype=bool)
-test2 = np.array([1,0,1,0,1,1,0,0,1], dtype=bool)
-
 
 def get_event_indexes(mask):
     mask = mask.astype(int)
@@ -50,18 +41,35 @@ def get_event_indexes(mask):
     return i_start, i_end
 
 
-event_starts, event_ends = get_event_indexes(close_2_shore)
+close_2_shore = ds.aprox_distance_shoreline < 10
+event_start_indexes, event_end_indexes = get_event_indexes(close_2_shore)
+n = len(event_start_indexes)
 
-if len(event_starts) != len(event_ends):
-    raise ValueError('"event starts" and "event ends" must have equal lengths!')
+def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
+    if len(event_start_indexes) != len(event_end_indexes):
+        raise ValueError('"event starts" and "event ends" must have equal lengths!')
 
-beaching_flags = np.zeros(len(event_starts), dtype=bool)
-for i, (i_s, i_e) in enumerate(zip(event_starts, event_ends)):
+    beaching_flags = np.zeros(len(event_start_indexes), dtype=bool)
+    for i, (i_s, i_e) in enumerate(zip(event_start_indexes, event_end_indexes)):
 
-    distance = np.zeros(i_e-i_s, dtype=int)
-    velocity = get_absolute_velocity(ds.isel(obs=slice(i_s, i_e)))
-    beaching_rows = determine_beaching_event(distance, velocity, max_distance_m=1, max_velocity_mps=0.01)
-    if beaching_rows.sum() > 0:
-        beaching_flags[i] = True
+        distance = np.zeros(i_e - i_s, dtype=int)
+        velocity = get_absolute_velocity(ds.isel(obs=slice(i_s, i_e)))
+        beaching_rows = determine_beaching_event(distance, velocity, max_distance_m=1, max_velocity_mps=0.01)
+        if beaching_rows.sum() > 0:
+            beaching_flags[i] = True
+
+    return beaching_flags
+
+
+beaching_flags = get_beaching_flags(ds, event_start_indexes, event_end_indexes)
+
+df = pd.DataFrame(data={'latitude': ds.latitude[event_start_indexes],
+                        'longitude': ds.longitude[event_start_indexes],
+                        've': ds.ve[event_start_indexes],
+                        'vn': ds.vn[event_start_indexes],
+                        'orientation coast east': np.zeros(n),
+                        'orientation coast north': np.zeros(n),
+                        'beaching_flags': beaching_flags})
+
 
 
