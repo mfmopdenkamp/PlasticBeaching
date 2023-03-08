@@ -1,32 +1,9 @@
-import load_data
-import numpy as np
-import matplotlib.pyplot as plt
 import picklemanager as pickm
 import pandas as pd
-from plotter import *
 from analyzer import *
-import xarray as xr
-import time
-from tqdm import tqdm
+import load_data
 
-
-def load_random_subset():
-    ds = load_data.get_ds_drifters()
-
-    n = len(ds.traj)
-    traj = np.random.choice(np.arange(len(ds.traj)), size=int(n/100), replace=False)
-    obs = obs_from_traj(ds, traj)
-    ds_subset = ds.isel(traj=traj, obs=obs)
-    df_raster = load_data.get_raster_distance_to_shore_04deg()
-    ds_subset['aprox_distance_shoreline'] = xr.DataArray(
-        data=interpolate_drifter_location(df_raster, ds_subset, method='nearest'),
-        dims='obs',
-        attrs={'long_name': 'Approximate distance to shoreline by interpolation onto 0.04deg raster',
-               'units': 'km'})
-    return ds_subset
-
-
-ds = pickm.pickle_wrapper('gdp_random_subset_5', load_random_subset)
+ds = pickm.pickle_wrapper('gdp_random_subset_6', load_data.load_random_subset)
 
 
 def get_event_indexes(mask):
@@ -44,6 +21,7 @@ def get_event_indexes(mask):
 close_2_shore = ds.aprox_distance_shoreline < 10
 event_start_indexes, event_end_indexes = get_event_indexes(close_2_shore)
 n = len(event_start_indexes)
+
 
 def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
     if len(event_start_indexes) != len(event_end_indexes):

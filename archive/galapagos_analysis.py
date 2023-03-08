@@ -1,5 +1,5 @@
 import picklemanager as pickm
-from create_subset import create_subset
+from create_subset_shoreline_proximity import create_subset
 import analyzer
 from plotter import *
 import matplotlib.pyplot as plt

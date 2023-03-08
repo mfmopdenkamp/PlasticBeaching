@@ -4,6 +4,8 @@ import picklemanager as pickm
 import xarray as xr
 import time
 import os
+import analyzer as a
+import numpy as np
 
 
 def find_data_directory():
@@ -129,6 +131,16 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
         ds_subset = pickm.load_pickle(f'pickledumps/{filename}subset_{proximity_of_coast}km.pkl')
         return ds_subset
     return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
+
+
+def load_random_subset():
+    ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
+
+    n = len(ds.traj)
+    traj = np.random.choice(np.arange(len(ds.traj)), size=int(n/100), replace=False)
+    obs = a.obs_from_traj(ds, traj)
+    ds_subset = ds.isel(traj=traj, obs=obs)
+    return ds_subset
 
 
 if __name__ == '__main__':
