@@ -6,6 +6,7 @@ import time
 import os
 import analyzer as a
 import numpy as np
+from shapely.geometry import Point
 
 
 def find_data_directory():
@@ -113,9 +114,33 @@ def get_raster_distance_to_shore_04deg():
                                 header=None, compression='bz2')
 
 
-def get_shoreline(resolution):
-    return pickm.pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
+def _polygons_2_points(resolution):
+
+    df = get_shoreline(resolution)
+
+    shoreline_points = []
+    lats = []
+    lons = []
+
+    for polygon in df.geometry:
+        for coord in polygon.exterior.coords:
+            shoreline_points.append(Point(coord))
+            lons.append(coord[0])
+            lats.append(coord[1])
+
+    df = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons}, geometry=shoreline_points, crs="WGS 84")
+
+    # Use projected CRS ESPG:3857 for better distance calculations
+    df.to_crs(crs=3857, inplace=True)
+    return df
+
+
+def get_shoreline(resolution, points_only=False):
+    df_shore = pickm.pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
                               f'{data_dir_name}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1.shp')
+    if points_only:
+        df_shore = pickm.pickle_wrapper(f'shoreline_{resolution}_points', _polygons_2_points, resolution)
+    return df_shore
 
 
 def get_bathymetry():

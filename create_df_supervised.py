@@ -2,6 +2,7 @@ import picklemanager as pickm
 import pandas as pd
 from analyzer import *
 import load_data
+import plotter
 
 ds = pickm.pickle_wrapper('gdp_random_subset_6', load_data.load_random_subset)
 
@@ -20,7 +21,6 @@ def get_event_indexes(mask):
 
 close_2_shore = ds.aprox_distance_shoreline < 10
 event_start_indexes, event_end_indexes = get_event_indexes(close_2_shore)
-n = len(event_start_indexes)
 
 
 def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
@@ -41,13 +41,80 @@ def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
 
 beaching_flags = get_beaching_flags(ds, event_start_indexes, event_end_indexes)
 
-df = pd.DataFrame(data={'latitude': ds.latitude[event_start_indexes],
+
+def get_distance_and_direction(ds):
+    df_shore = load_data.get_shoreline('i', points_only=True)
+
+    lats = ds.latitude.values
+    lons = ds.longitude.values
+    df_gdp = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
+                              geometry=gpd.points_from_xy(lons, lats),
+                              crs='epsg:4326')
+
+    # Make sure the CRS is identical.
+    df_gdp.to_crs(df_shore.crs, inplace=True)
+
+    n = len(ds.obs)
+    dtype = np.float32
+    init_distance = np.finfo(dtype).max
+    shortest_distances = np.ones(n, dtype=dtype) * init_distance
+    distances_east = np.zeros(n, dtype=dtype)
+    distances_north = np.zeros(n, dtype=dtype)
+    no_near_shore_found_indexes = []
+
+    for i_event, event in enumerate(df_gdp.itertuples()):
+        min_lon = event.longitude - 0.13
+        if min_lon < -180:
+            min_lon += 360
+        max_lon = event.longitude + 0.13
+        if max_lon > 180:
+            max_lon -= 360
+        min_lat = event.latitude - 0.13
+        max_lat = event.latitude + 0.13
+
+        df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
+                          (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]
+
+        if not df_shore_box.empty:
+            i_nearest_shore_point = None
+
+            for i_shore, shore_point in zip(df_shore_box.index, df_shore_box.geometry):
+                distance = event.geometry.distance(shore_point)
+                if distance < shortest_distances[i_event]:
+                    shortest_distances[i_event] = distance
+                    i_nearest_shore_point = i_shore
+
+            distances_north[i_event] = event.geometry.y - df_shore_box.geometry[i_nearest_shore_point].y
+            distances_east[i_event] = event.geometry.x - df_shore_box.geometry[i_nearest_shore_point].x
+        else:
+            no_near_shore_found_indexes.append(i_event)
+    if no_near_shore_found_indexes:
+        print(f'No near shore found for events : {no_near_shore_found_indexes}')
+    return shortest_distances, distances_east, distances_north
+
+
+shortest_distances, distances_east, distances_north = get_distance_and_direction(ds.isel(obs=event_start_indexes))
+
+
+n = len(event_start_indexes)
+df = pd.DataFrame(data={'time': ds.time[event_start_indexes],
+                        'latitude': ds.latitude[event_start_indexes],
                         'longitude': ds.longitude[event_start_indexes],
                         've': ds.ve[event_start_indexes],
                         'vn': ds.vn[event_start_indexes],
-                        'orientation coast east': np.zeros(n),
-                        'orientation coast north': np.zeros(n),
+                        'nearest shore': shortest_distances,
+                        'de': distances_east,
+                        'dn': distances_north,
                         'beaching_flags': beaching_flags})
 
+beaching_obs = []
+for i_b in np.where(beaching_flags)[0]:
+    beaching_obs.extend([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
 
 
+event_id = 0
+plt, ax = plotter.get_sophie_subplots(extent=(df['longitude'].min()-0.12,
+                                              df['longitude'].max()+0.12,
+                                              df['latitude'].min()-0.12,
+                                              df['latitude'].max()+0.12))
+plotter.plot_trajectories(ax, ds.isel(obs=slice(event_start_indexes[event_id], event_end_indexes[event_id])))

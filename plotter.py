@@ -53,6 +53,17 @@ def plot_trajectories_death_type(ds, s=2):
     plt.show()
 
 
+def plot_trajectories(ax, ds, s=6):
+    """given a dataset, plot the trajectories on a map"""
+
+    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s)
+
+    ax.coastlines()
+
+    plt.tight_layout()
+    plt.show()
+
+
 def plot_galapagos_map_distances(ds, title=''):
     fig, ax = get_sophie_subplots(extent=(-92, -88.5, -1.75, 1), title=title)
     pcm = ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(),
