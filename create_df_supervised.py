@@ -1,28 +1,44 @@
+import numpy as np
+
 import picklemanager as pickm
 import pandas as pd
 from analyzer import *
 import load_data
 import plotter
 
-ds = pickm.pickle_wrapper('gdp_random_subset_6', load_data.load_random_subset)
+ds = pickm.pickle_wrapper('gdp_random_subset_1', load_data.load_random_subset)
 
-
-def get_event_indexes(mask):
+#%%
+def get_event_indexes(mask, ds):
+    # first determine start and end indexes solely based on the mask
     mask = mask.astype(int)
-    i_start = np.where(np.diff(mask) == 1)[0] + 1
-    i_end = np.where(np.diff(mask) == -1)[0] + 1
+    start_indexes = np.where(np.diff(mask) == 1)[0] + 1
+    end_indexes = np.where(np.diff(mask) == -1)[0] + 1
 
     if mask[0] and not mask[1]:
-        i_start = np.insert(i_start, 0, 0)
+        start_indexes = np.insert(start_indexes, 0, 0)
     if mask[-1]:
-        i_end = np.append(i_end, len(mask))
-    return i_start, i_end
+        end_indexes = np.append(end_indexes, len(mask))
+
+    # check if sequencing events should be merged to one event
+    duration_threshold = 6 # hours
+    times = ds.time.values
+    rows_to_delete = []
+    for i_event in range(1, len(start_indexes)):
+        duration = (times[start_indexes[i_event]] - times[end_indexes[i_event-1]]) / np.timedelta64(1, 'h')
+        if 0 < duration <= duration_threshold:
+            rows_to_delete.append(i_event-1)
+            start_indexes[i_event] = start_indexes[i_event-1]
+
+    start_indexes = np.delete(start_indexes, rows_to_delete)
+    end_indexes = np.delete(end_indexes, rows_to_delete)
+    return start_indexes, end_indexes
 
 
 close_2_shore = ds.aprox_distance_shoreline < 10
-event_start_indexes, event_end_indexes = get_event_indexes(close_2_shore)
+event_start_indexes, event_end_indexes = get_event_indexes(close_2_shore, ds)
 
-
+#%%
 def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
     if len(event_start_indexes) != len(event_end_indexes):
         raise ValueError('"event starts" and "event ends" must have equal lengths!')
@@ -41,7 +57,7 @@ def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
 
 beaching_flags = get_beaching_flags(ds, event_start_indexes, event_end_indexes)
 
-
+#%%
 def get_distance_and_direction(ds):
     df_shore = load_data.get_shoreline('i', points_only=True)
 
@@ -95,7 +111,7 @@ def get_distance_and_direction(ds):
 
 shortest_distances, distances_east, distances_north = get_distance_and_direction(ds.isel(obs=event_start_indexes))
 
-
+#%% Create supervised dataframe
 n = len(event_start_indexes)
 df = pd.DataFrame(data={'time': ds.time[event_start_indexes],
                         'latitude': ds.latitude[event_start_indexes],
@@ -107,14 +123,15 @@ df = pd.DataFrame(data={'time': ds.time[event_start_indexes],
                         'dn': distances_north,
                         'beaching_flags': beaching_flags})
 
+#%% Plotting
 beaching_obs = []
 for i_b in np.where(beaching_flags)[0]:
-    beaching_obs.extend([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
+    beaching_obs.append([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
 
 
-event_id = 0
-plt, ax = plotter.get_sophie_subplots(extent=(df['longitude'].min()-0.12,
+plt, ax = plotter.get_marc_subplots(extent=(df['longitude'].min()-0.12,
                                               df['longitude'].max()+0.12,
                                               df['latitude'].min()-0.12,
                                               df['latitude'].max()+0.12))
-plotter.plot_trajectories(ax, ds.isel(obs=slice(event_start_indexes[event_id], event_end_indexes[event_id])))
+
+plotter.plot_trajectories(ax, ds.isel(obs=beaching_obs[0]))

@@ -35,6 +35,23 @@ def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=
     return fig, ax
 
 
+def get_marc_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
+    """ This function sets up a figure (fig and ax) for plotting the data in lonlatbox of the extent."""
+
+    fig = plt.figure(figsize=size, dpi=300)
+
+    ax = plt.axes(projection=ccrs.PlateCarree())
+
+    ax.set_extent(extent, crs=ccrs.Geodetic())
+
+    plt.title(title, fontsize=20)
+
+    gl = ax.gridlines(draw_labels=True)
+    gl.top_labels = gl.right_labels = False
+
+    return fig, ax
+
+
 def plot_trajectories_death_type(ds, s=2):
     """given a dataset, plot the trajectories on a map"""
     plt.figure(figsize=(12, 8), dpi=300)
@@ -53,10 +70,13 @@ def plot_trajectories_death_type(ds, s=2):
     plt.show()
 
 
-def plot_trajectories(ax, ds, s=6):
+def plot_trajectories(ax, ds, s=6, extent=()):
     """given a dataset, plot the trajectories on a map"""
 
     ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s)
+
+    if extent:
+        ax.set_extent(extent)
 
     ax.coastlines()
 
