@@ -7,7 +7,7 @@ import load_data
 import plotter
 
 ds = pickm.pickle_wrapper('gdp_random_subset_1', load_data.load_random_subset)
-
+shoreline_resolution = 'i'
 #%%
 def get_event_indexes(mask, ds):
     # first determine start and end indexes solely based on the mask
@@ -23,10 +23,11 @@ def get_event_indexes(mask, ds):
     # check if sequencing events should be merged to one event
     duration_threshold = 6 # hours
     times = ds.time.values
+    ids = ds.ids.values
     rows_to_delete = []
     for i_event in range(1, len(start_indexes)):
         duration = (times[start_indexes[i_event]] - times[end_indexes[i_event-1]]) / np.timedelta64(1, 'h')
-        if 0 < duration <= duration_threshold:
+        if 0 < duration <= duration_threshold and ids[i_event] == ids[i_event-1]:
             rows_to_delete.append(i_event-1)
             start_indexes[i_event] = start_indexes[i_event-1]
 
@@ -59,7 +60,7 @@ beaching_flags = get_beaching_flags(ds, event_start_indexes, event_end_indexes)
 
 #%%
 def get_distance_and_direction(ds):
-    df_shore = load_data.get_shoreline('i', points_only=True)
+    df_shore = load_data.get_shoreline(shoreline_resolution, points_only=True)
 
     lats = ds.latitude.values
     lons = ds.longitude.values
@@ -128,10 +129,26 @@ beaching_obs = []
 for i_b in np.where(beaching_flags)[0]:
     beaching_obs.append([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
 
+ds_select = ds.isel(obs=beaching_obs[0])
 
-plt, ax = plotter.get_marc_subplots(extent=(df['longitude'].min()-0.12,
-                                              df['longitude'].max()+0.12,
-                                              df['latitude'].min()-0.12,
-                                              df['latitude'].max()+0.12))
+extent_offset = 1
+extent=(ds_select['longitude'].min()-extent_offset, ds_select['longitude'].max()+extent_offset,
+                                              ds_select['latitude'].min()-extent_offset,
+                                              ds_select['latitude'].max()+extent_offset)
+fig, ax = plotter.get_sophie_subplots(extent=extent)
 
-plotter.plot_trajectories(ax, ds.isel(obs=beaching_obs[0]))
+
+df_shore = load_data.get_shoreline(shoreline_resolution)
+plotter.plot_trajectories(ax, ds_select, df_shore=df_shore)
+
+#%%
+extent_offset = 1
+extent=(ds_select['longitude'].min()-extent_offset, ds_select['longitude'].max()+extent_offset,
+                                              ds_select['latitude'].min()-extent_offset,
+                                              ds_select['latitude'].max()+extent_offset)
+fig, ax = plotter.get_sophie_subplots(extent=extent)
+
+fig, ax = plt.subplots()
+df_shore.plot(ax=ax)
+ax.set_extent(extent)
+plt.show()

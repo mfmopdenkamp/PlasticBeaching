@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+import pandas as pd
+
 import load_data
 import numpy as np
 from tqdm import tqdm
@@ -46,8 +48,8 @@ def get_marc_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''
 
     plt.title(title, fontsize=20)
 
-    gl = ax.gridlines(draw_labels=True)
-    gl.top_labels = gl.right_labels = False
+    # gl = ax.gridlines(draw_labels=True)
+    # gl.top_labels = gl.right_labels = False
 
     return fig, ax
 
@@ -70,15 +72,18 @@ def plot_trajectories_death_type(ds, s=2):
     plt.show()
 
 
-def plot_trajectories(ax, ds, s=6, extent=()):
+def plot_trajectories(ax, ds, s=15, extent=(), df_shore=pd.DataFrame()):
     """given a dataset, plot the trajectories on a map"""
 
-    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s)
+    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s, c='r')
 
     if extent:
         ax.set_extent(extent)
 
-    ax.coastlines()
+    if not df_shore.empty:
+        df_shore.plot(ax=ax, color='k')
+    else:
+        ax.coastlines()
 
     plt.tight_layout()
     plt.show()
