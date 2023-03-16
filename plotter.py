@@ -72,27 +72,7 @@ def plot_trajectories_death_type(ds, s=2):
     plt.show()
 
 
-def plot_beaching_trajectories(ds, ax=None, s=15, ds_beaching_obs=None, df_shore=pd.DataFrame()):
-    """given a dataset, plot the trajectories on a map"""
-    if ax is None:
-        plt.figure(figsize=(12, 8), dpi=300)
-        ax = plt.axes(projection=ccrs.PlateCarree())
-        extent_offset = 0.2
-        ax.set_xlim([ds['longitude'].min()-extent_offset, ds['longitude'].max()+extent_offset])
-        ax.set_ylim([ds['latitude'].min()-extent_offset, ds['latitude'].max()+extent_offset])
 
-    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s, c='midnightblue')
-    if ds_beaching_obs is not None:
-        ax.scatter(ds_beaching_obs.longitude, ds_beaching_obs.latitude, s=s, c='r')
-    ax.plot(ds.longitude, ds.latitude, ':k', transform=ccrs.PlateCarree(), alpha=0.5)
-
-    if not df_shore.empty:
-        df_shore.plot(ax=ax, color='b')
-    # else:
-    #     ax.coastlines()
-
-    plt.tight_layout()
-    plt.show()
 
 
 def plot_galapagos_map_distances(ds, title=''):

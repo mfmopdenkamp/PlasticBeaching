@@ -79,19 +79,19 @@ def get_distance_and_direction(ds):
     dtype = np.float32
     init_distance = np.finfo(dtype).max
     shortest_distances = np.ones(n, dtype=dtype) * init_distance
-    distances_east = np.zeros(n, dtype=dtype)
-    distances_north = np.zeros(n, dtype=dtype)
+    distances_east = np.ones(n, dtype=dtype) * init_distance
+    distances_north = np.ones(n, dtype=dtype) * init_distance
     no_near_shore_found_indexes = []
 
     for i_event, event in enumerate(df_gdp.itertuples()):
-        min_lon = event.longitude - 0.13
+        min_lon = event.longitude - 0.15
         if min_lon < -180:
             min_lon += 360
-        max_lon = event.longitude + 0.13
+        max_lon = event.longitude + 0.15
         if max_lon > 180:
             max_lon -= 360
-        min_lat = event.latitude - 0.13
-        max_lat = event.latitude + 0.13
+        min_lat = event.latitude - 0.15
+        max_lat = event.latitude + 0.15
 
         df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
                           (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]
@@ -118,17 +118,49 @@ shortest_distances, distances_east, distances_north = get_distance_and_direction
 
 #%% Create supervised dataframe
 n = len(event_start_indexes)
-df = pd.DataFrame(data={'time': ds.time[event_start_indexes],
-                        'latitude': ds.latitude[event_start_indexes],
-                        'longitude': ds.longitude[event_start_indexes],
+df = pd.DataFrame(data={'time_start': ds.time[event_start_indexes],
+                        'time_end': ds.time[event_end_indexes-1],
+                        'latitude_start': ds.latitude[event_start_indexes],
+                        'latitude_end': ds.latitude[event_end_indexes-1],
+                        'longitude_start': ds.longitude[event_start_indexes],
+                        'longitude_end': ds.longitude[event_end_indexes-1],
                         've': ds.ve[event_start_indexes],
                         'vn': ds.vn[event_start_indexes],
                         'nearest shore': shortest_distances,
                         'de': distances_east,
                         'dn': distances_north,
                         'beaching_flags': beaching_flags})
+df['time_start'] = pd.to_datetime(df['time_start'])
+df.sort_values('time_start', inplace=True)
+df.filter(['time_start', 'time_end', 'latitude_start', 'longitude_start'], axis=1).to_csv('data/events.csv',
+                                                                                          index_label='ID')
 
 #%% Plotting
+import cartopy.crs as ccrs
+def plot_beaching_trajectories(ds, ax=None, s=15, ds_beaching_obs=None, df_shore=pd.DataFrame()):
+    """given a dataset, plot the trajectories on a map"""
+    if ax is None:
+        plt.figure(figsize=(12, 8), dpi=300)
+        ax = plt.axes(projection=ccrs.PlateCarree())
+        extent_offset = 0.2
+        ax.set_xlim([ds['longitude'].min() - extent_offset, ds['longitude'].max() + extent_offset])
+        ax.set_ylim([ds['latitude'].min() - extent_offset, ds['latitude'].max() + extent_offset])
+
+    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s, c='midnightblue', alpha=0.5)
+    ax.plot(ds.longitude, ds.latitude, ':k', transform=ccrs.PlateCarree(), alpha=0.5)
+
+    if ds_beaching_obs is not None:
+        ax.scatter(ds_beaching_obs.longitude, ds_beaching_obs.latitude, transform=ccrs.PlateCarree(), s=s*2, c='r')
+
+    if not df_shore.empty:
+        df_shore.plot(ax=ax, color='b')
+    # else:
+    #     ax.coastlines()
+
+    plt.tight_layout()
+    plt.show()
+
+
 beaching_event_obs = []
 for i_b in np.where(beaching_flags)[0]:
     beaching_event_obs.append([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
@@ -141,16 +173,4 @@ for i in range(len(beaching_event_obs)):
             ds_select['latitude'].min()-extent_offset,  ds_select['latitude'].max()+extent_offset)
 
     fig, ax = plotter.get_sophie_subplots(figsize=None, extent=extent)
-    plotter.plot_beaching_trajectories(ds_select, ax, s=25, ds_beaching_obs=ds.isel(obs=beaching_obs_list[i]))
-
-#%%
-import cartopy.crs as crrs
-df_shore = load_data.get_shoreline(shoreline_resolution)
-
-fig, ax = plt.subplots()
-ax = plt.axes(projection=crrs.PlateCarree())
-df_shore.plot(ax=ax)
-extent_offset = 0.1
-ax.set_xlim([ds_select['longitude'].min()-extent_offset, ds_select['longitude'].max()+extent_offset])
-ax.set_ylim([ds_select['latitude'].min()-extent_offset, ds_select['latitude'].max()+extent_offset])
-plt.show()
+    plot_beaching_trajectories(ds_select, ax, s=12, ds_beaching_obs=ds.isel(obs=beaching_obs_list[i]))
