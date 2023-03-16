@@ -10,13 +10,13 @@ from tqdm import tqdm
 death_type_colors = {0: 'r', 1: 'g', 2: 'b', 3: 'y', 4: 'c', 5: 'm', 6: 'aquamarine'}
 
 
-def get_sophie_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
+def get_sophie_subplots(figsize=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
     """ This function sets up a figure (fig and ax) for plotting the data in the Galapagos region.
     This set-up contains a background terrain map of the Galapagos region, extending from lat (-2,1) and lon (-93, -88.5)"""
     from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
     from cartopy.io.img_tiles import Stamen
 
-    fig = plt.figure(figsize=size, dpi=300)
+    fig = plt.figure(figsize=figsize, dpi=300)
 
     tiler = Stamen('terrain-background')
     mercator = tiler.crs
@@ -72,18 +72,24 @@ def plot_trajectories_death_type(ds, s=2):
     plt.show()
 
 
-def plot_trajectories(ax, ds, s=15, extent=(), df_shore=pd.DataFrame()):
+def plot_beaching_trajectories(ds, ax=None, s=15, ds_beaching_obs=None, df_shore=pd.DataFrame()):
     """given a dataset, plot the trajectories on a map"""
+    if ax is None:
+        plt.figure(figsize=(12, 8), dpi=300)
+        ax = plt.axes(projection=ccrs.PlateCarree())
+        extent_offset = 0.2
+        ax.set_xlim([ds['longitude'].min()-extent_offset, ds['longitude'].max()+extent_offset])
+        ax.set_ylim([ds['latitude'].min()-extent_offset, ds['latitude'].max()+extent_offset])
 
-    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s, c='r')
-
-    if extent:
-        ax.set_extent(extent)
+    ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(), s=s, c='midnightblue')
+    if ds_beaching_obs is not None:
+        ax.scatter(ds_beaching_obs.longitude, ds_beaching_obs.latitude, s=s, c='r')
+    ax.plot(ds.longitude, ds.latitude, ':k', transform=ccrs.PlateCarree(), alpha=0.5)
 
     if not df_shore.empty:
-        df_shore.plot(ax=ax, color='k')
-    else:
-        ax.coastlines()
+        df_shore.plot(ax=ax, color='b')
+    # else:
+    #     ax.coastlines()
 
     plt.tight_layout()
     plt.show()

@@ -70,11 +70,11 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     return shortest_distances
 
 
-def determine_beaching_event(distance, velocity, max_distance_m, max_velocity_mps, threshold_count=4):
+def determine_beaching_obs(distance, velocity, max_distance_m, max_velocity_mps, threshold_count=4):
     if len(distance) != len(velocity):
         raise ValueError('distance and velocity array must have the same length!')
 
-    beaching_rows = np.zeros(len(distance), dtype=bool)
+    beaching_tags = np.zeros(len(distance), dtype=bool)
 
     count = 0
     threshold_count = threshold_count
@@ -83,12 +83,12 @@ def determine_beaching_event(distance, velocity, max_distance_m, max_velocity_mp
             count += 1
 
             if count >= threshold_count:
-                beaching_rows[i] = True
+                beaching_tags[i] = True
 
         else:
             count = 0
 
-    return beaching_rows
+    return beaching_tags
 
 
 def days_without_drogue(ds):
@@ -119,9 +119,9 @@ def tag_drifters_beached(ds, distance_threshold=1000):
             obs = obs_from_traj(ds, traj)
             ds_i = ds.isel(obs=obs, traj=traj)
 
-            beaching_rows = determine_beaching_event(ds_i.aprox_distance_shoreline.values[-10:],
-                                                     np.hypot(ds_i.vn.values[-10:], ds_i.ve.values[-10:]),
-                                                     distance_threshold, 0.1)
+            beaching_rows = determine_beaching_obs(ds_i.aprox_distance_shoreline.values[-10:],
+                                                   np.hypot(ds_i.vn.values[-10:], ds_i.ve.values[-10:]),
+                                                   distance_threshold, 0.1)
 
             if beaching_rows[-1]:
                 print(f'Found beaching of drifter {ds_i.ID.values}')

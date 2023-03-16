@@ -39,24 +39,28 @@ def get_event_indexes(mask, ds):
 close_2_shore = ds.aprox_distance_shoreline < 10
 event_start_indexes, event_end_indexes = get_event_indexes(close_2_shore, ds)
 
+
 #%%
 def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
     if len(event_start_indexes) != len(event_end_indexes):
         raise ValueError('"event starts" and "event ends" must have equal lengths!')
 
     beaching_flags = np.zeros(len(event_start_indexes), dtype=bool)
+    beaching_obs_list = []
     for i, (i_s, i_e) in enumerate(zip(event_start_indexes, event_end_indexes)):
 
+        # hardcode distance to be neglected by setting distances to zero and threshold to >0 (e.g. 1)
         distance = np.zeros(i_e - i_s, dtype=int)
         velocity = get_absolute_velocity(ds.isel(obs=slice(i_s, i_e)))
-        beaching_rows = determine_beaching_event(distance, velocity, max_distance_m=1, max_velocity_mps=0.01)
-        if beaching_rows.sum() > 0:
+        beaching_tags = determine_beaching_obs(distance, velocity, max_distance_m=1, max_velocity_mps=0.01)
+        if beaching_tags.sum() > 0:
             beaching_flags[i] = True
+            beaching_obs_list.append(np.arange(i_s, i_e)[beaching_tags])
+    return beaching_flags, beaching_obs_list
 
-    return beaching_flags
 
+beaching_flags, beaching_obs_list = get_beaching_flags(ds, event_start_indexes, event_end_indexes)
 
-beaching_flags = get_beaching_flags(ds, event_start_indexes, event_end_indexes)
 
 #%%
 def get_distance_and_direction(ds):
@@ -125,30 +129,28 @@ df = pd.DataFrame(data={'time': ds.time[event_start_indexes],
                         'beaching_flags': beaching_flags})
 
 #%% Plotting
-beaching_obs = []
+beaching_event_obs = []
 for i_b in np.where(beaching_flags)[0]:
-    beaching_obs.append([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
+    beaching_event_obs.append([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
 
-ds_select = ds.isel(obs=beaching_obs[0])
+extent_offset = 0.1
+for i in range(len(beaching_event_obs)):
+    ds_select = ds.isel(obs=beaching_event_obs[i])
 
-extent_offset = 1
-extent=(ds_select['longitude'].min()-extent_offset, ds_select['longitude'].max()+extent_offset,
-                                              ds_select['latitude'].min()-extent_offset,
-                                              ds_select['latitude'].max()+extent_offset)
-fig, ax = plotter.get_sophie_subplots(extent=extent)
+    extent=(ds_select['longitude'].min()-extent_offset, ds_select['longitude'].max()+extent_offset,
+            ds_select['latitude'].min()-extent_offset,  ds_select['latitude'].max()+extent_offset)
 
-
-df_shore = load_data.get_shoreline(shoreline_resolution)
-plotter.plot_trajectories(ax, ds_select, df_shore=df_shore)
+    fig, ax = plotter.get_sophie_subplots(figsize=None, extent=extent)
+    plotter.plot_beaching_trajectories(ds_select, ax, s=25, ds_beaching_obs=ds.isel(obs=beaching_obs_list[i]))
 
 #%%
-extent_offset = 1
-extent=(ds_select['longitude'].min()-extent_offset, ds_select['longitude'].max()+extent_offset,
-                                              ds_select['latitude'].min()-extent_offset,
-                                              ds_select['latitude'].max()+extent_offset)
-fig, ax = plotter.get_sophie_subplots(extent=extent)
+import cartopy.crs as crrs
+df_shore = load_data.get_shoreline(shoreline_resolution)
 
 fig, ax = plt.subplots()
+ax = plt.axes(projection=crrs.PlateCarree())
 df_shore.plot(ax=ax)
-ax.set_extent(extent)
+extent_offset = 0.1
+ax.set_xlim([ds_select['longitude'].min()-extent_offset, ds_select['longitude'].max()+extent_offset])
+ax.set_ylim([ds_select['latitude'].min()-extent_offset, ds_select['latitude'].max()+extent_offset])
 plt.show()
