@@ -33,6 +33,10 @@ def get_event_indexes(mask, ds):
 
     start_indexes = np.delete(start_indexes, rows_to_delete)
     end_indexes = np.delete(end_indexes, rows_to_delete)
+
+    # split events based on time or duration
+
+
     return start_indexes, end_indexes
 
 

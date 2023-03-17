@@ -13,6 +13,9 @@ v_mean = np.zeros(n)
 V_max = np.zeros(n)
 u_max = np.zeros(n)
 v_max = np.zeros(n)
+V_std = np.zeros(n)
+u_std = np.zeros(n)
+v_std = np.zeros(n)
 
 
 for i_event, event in enumerate(df.itertuples()):
@@ -36,4 +39,17 @@ for i_event, event in enumerate(df.itertuples()):
     V_max[i_event] = np.max(abs_speed)
     u_max[i_event] = np.max(ds.u)
     v_max[i_event] = np.max(ds.v)
+    V_std[i_event] = np.std(abs_speed)
+    u_std[i_event] = np.std(ds.u)
+    v_std[i_event] = np.std(ds.v)
 
+df.assign(V_mean=V_mean,
+          u_mean=u_mean,
+          v_mean=v_mean,
+          V_max=V_max,
+          u_max=u_max,
+          v_max=v_max,
+          V_std=V_std,
+          u_std=u_std,
+          v_std=v_std
+          )
