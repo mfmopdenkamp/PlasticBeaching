@@ -34,7 +34,24 @@ def get_event_indexes(mask, ds):
     start_indexes = np.delete(start_indexes, rows_to_delete)
     end_indexes = np.delete(end_indexes, rows_to_delete)
 
-    # split events based on time or duration
+    # Split events based on time. Use index for this, since they correspond to exactly 1 hour.
+    # New events may not be smaller than the length threshold!
+    # NB: What if split is splitting beaching event?
+    length_threshold = 24
+    event_lengths = end_indexes - start_indexes
+    indexes_insert_rows = []
+    new_start_indexes = []
+    for i_event, event_length in enumerate(event_lengths):
+        if event_length >= 2 * length_threshold:
+            new_start_indexes.append(np.arange(length_threshold, event_length-length_threshold+1, length_threshold)
+                                     + event_start_indexes[i_event])
+            indexes_insert_rows.append(i_event+1)
+
+    # change end-index of events that are being split
+    if indexes_insert_rows:
+        end_indexes[np.array(indexes_insert_rows)-1] = [l[0] for l in new_start_indexes]
+
+    # insert new events
 
 
     return start_indexes, end_indexes
