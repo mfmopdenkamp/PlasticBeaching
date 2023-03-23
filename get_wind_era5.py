@@ -5,7 +5,7 @@ import xarray as xr
 
 df = pd.read_csv('data/events.csv', parse_dates=['time_start', 'time_end'], infer_datetime_format=True)
 
-prefix_era5_data = 'example_prefix_'
+prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
 n = df.shape[0]
 V_mean = np.zeros(n)
 u_mean = np.zeros(n)
@@ -24,7 +24,7 @@ for i_event, event in enumerate(df.itertuples()):
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
     dss = []
     for yyyymm in YYYYMM_keys:
-        # ds.append(xr.open_dataset(prefix_era5_data+yyyymm))
+        dss.append(xr.open_dataset(prefix_era5_data+yyyymm))
         print('Open '+prefix_era5_data+yyyymm)
     ds = xr.concat(dss, dim='time')
 
