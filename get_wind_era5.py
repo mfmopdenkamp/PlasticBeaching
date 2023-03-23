@@ -22,15 +22,15 @@ for i_event, event in enumerate(df.itertuples()):
     print(f'Do something from start time : {event.time_start} until : {event.time_end}')
     times = pd.date_range(event.time_start, event.time_end, freq='H')
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
-    dss = []
-    for yyyymm in YYYYMM_keys:
-        dss.append(xr.open_dataset(f'{prefix_era5_data}{yyyymm}.nc'))
-        print('Open '+prefix_era5_data+yyyymm)
-    ds = xr.concat(dss, dim='time')
+    file_paths = [prefix_era5_data+yymm+'.nc' for yymm in YYYYMM_keys]
+    if len(file_paths) > 1:
+        ds = xr.open_mfdataset([file_paths], concat_dim='time')
+    else:
+        ds = xr.open_dataset(file_paths[0])
 
     # interpolate lons and lats
-    lat = ds.latitude[np.argmin(abs(ds.latitude - event.latitude_start))]
-    lon = ds.longitude[np.argmin(abs(ds.longitude - event.longitude_start))]
+    lat = ds.latitude[np.argmin(abs(ds.latitude.values - event.latitude_start))]
+    lon = ds.longitude[np.argmin(abs(ds.longitude.values - event.longitude_start))]
     ds = ds.sel(time=times, latitude=lat, longitude=lon)
     abs_speed = np.hypot(ds.u10, ds.v10)
     V_mean[i_event] = np.mean(abs_speed)
