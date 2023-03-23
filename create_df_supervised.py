@@ -8,54 +8,60 @@ import plotter
 
 ds = pickm.pickle_wrapper('gdp_random_subset_1', load_data.load_random_subset)
 shoreline_resolution = 'i'
+
+
 #%%
-def get_event_indexes(mask, ds):
+def get_event_indexes(mask, ds, duration_threshold=6, length_threshold=24):
     # first determine start and end indexes solely based on the mask
     mask = mask.astype(int)
-    start_indexes = np.where(np.diff(mask) == 1)[0] + 1
-    end_indexes = np.where(np.diff(mask) == -1)[0] + 1
+    start_obs_indexes = np.where(np.diff(mask) == 1)[0] + 1
+    end_obs_indexes = np.where(np.diff(mask) == -1)[0] + 1
 
     if mask[0] and not mask[1]:
-        start_indexes = np.insert(start_indexes, 0, 0)
+        start_obs_indexes = np.insert(start_obs_indexes, 0, 0)
     if mask[-1]:
-        end_indexes = np.append(end_indexes, len(mask))
+        end_obs_indexes = np.append(end_obs_indexes, len(mask))
 
     # check if sequencing events should be merged to one event
-    duration_threshold = 6 # hours
+     # hours
+    event_indexes_to_delete = []
+
     times = ds.time.values
     ids = ds.ids.values
-    rows_to_delete = []
-    for i_event in range(1, len(start_indexes)):
-        duration = (times[start_indexes[i_event]] - times[end_indexes[i_event-1]]) / np.timedelta64(1, 'h')
+    for i_event in range(1, len(start_obs_indexes)):
+        duration = (times[start_obs_indexes[i_event]] - times[end_obs_indexes[i_event-1]]) / np.timedelta64(1, 'h')
         if 0 < duration <= duration_threshold and ids[i_event] == ids[i_event-1]:
-            rows_to_delete.append(i_event-1)
-            start_indexes[i_event] = start_indexes[i_event-1]
+            event_indexes_to_delete.append(i_event-1)
+            start_obs_indexes[i_event] = start_obs_indexes[i_event-1]
 
-    start_indexes = np.delete(start_indexes, rows_to_delete)
-    end_indexes = np.delete(end_indexes, rows_to_delete)
+    start_obs_indexes = np.delete(start_obs_indexes, event_indexes_to_delete)
+    end_obs_indexes = np.delete(end_obs_indexes, event_indexes_to_delete)
 
     # Split events based on time. Use index for this, since they correspond to exactly 1 hour.
     # New events may not be smaller than the length threshold!
     # NB: What if split is splitting beaching event?
-    length_threshold = 24
-    event_lengths = end_indexes - start_indexes
-    indexes_insert_rows = []
-    new_start_indexes = []
-    for i_event, event_length in enumerate(event_lengths):
-        if event_length >= 2 * length_threshold:
-            new_start_indexes.append(np.arange(length_threshold, event_length-length_threshold+1, length_threshold)
-                                     + event_start_indexes[i_event])
-            indexes_insert_rows.append(i_event+1)
+    split_obs_indexes_to_insert = np.array([])
+    end_obs_indexes_to_insert_back = np.array([])
+    where_to_insert_event_indexes = np.array([])
 
-    # change end-index of events that are being split
-    if indexes_insert_rows:
-        end_indexes[np.array(indexes_insert_rows)-1] = [l[0] for l in new_start_indexes]
+    event_lengths = end_obs_indexes - start_obs_indexes
+    split_length = int(length_threshold / 2)
+    for i_event, event_length in enumerate(event_lengths):
+        if event_length >= length_threshold:
+            event_split_obs_indexes = np.arange(split_length, event_length-split_length+1, split_length)\
+                                  + start_obs_indexes[i_event] # start counting from start event instead of zero
+            split_obs_indexes_to_insert = np.append(split_obs_indexes_to_insert, event_split_obs_indexes)
+            where_to_insert_event_indexes = np.append(where_to_insert_event_indexes, np.ones(len(event_split_obs_indexes))
+                                                * i_event+1) # plus one to insert it after the original event
+            
+            # change end-index of events that are being split
+            end_obs_indexes_to_insert_back = np.append(end_obs_indexes_to_insert_back, end_obs_indexes[i_event])
+            end_obs_indexes[i_event] = event_split_obs_indexes[0]
 
     # insert new events
+    start_obs_indexes = np.insert(start_obs_indexes, where_to_insert_event_indexes, split_obs_indexes_to_insert)
 
-
-    return start_indexes, end_indexes
-
+    return start_obs_indexes, end_obs_indexes
 
 close_2_shore = ds.aprox_distance_shoreline < 10
 event_start_indexes, event_end_indexes = get_event_indexes(close_2_shore, ds)
