@@ -40,26 +40,23 @@ def get_event_indexes(mask, ds, duration_threshold=6, length_threshold=24):
     # Split events based on time. Use index for this, since they correspond to exactly 1 hour.
     # New events may not be smaller than the length threshold!
     # NB: What if split is splitting beaching event?
-    split_obs_indexes_to_insert = np.array([])
-    end_obs_indexes_to_insert_back = np.array([])
-    where_to_insert_event_indexes = np.array([])
+    split_obs_indexes_to_insert = np.array([], dtype=int)
+    where_to_insert_event_indexes = np.array([], dtype=int)
 
     event_lengths = end_obs_indexes - start_obs_indexes
     split_length = int(length_threshold / 2)
     for i_event, event_length in enumerate(event_lengths):
         if event_length >= length_threshold:
-            event_split_obs_indexes = np.arange(split_length, event_length-split_length+1, split_length)\
-                                  + start_obs_indexes[i_event] # start counting from start event instead of zero
+            event_split_obs_indexes = np.arange(split_length, event_length - split_length + 1, split_length) \
+                                      + start_obs_indexes[i_event]  # start counting from start event instead of zero
             split_obs_indexes_to_insert = np.append(split_obs_indexes_to_insert, event_split_obs_indexes)
-            where_to_insert_event_indexes = np.append(where_to_insert_event_indexes, np.ones(len(event_split_obs_indexes))
-                                                * i_event+1) # plus one to insert it after the original event
-            
-            # change end-index of events that are being split
-            end_obs_indexes_to_insert_back = np.append(end_obs_indexes_to_insert_back, end_obs_indexes[i_event])
-            end_obs_indexes[i_event] = event_split_obs_indexes[0]
+            where_to_insert_event_indexes = np.append(where_to_insert_event_indexes,
+                                                      np.ones(len(event_split_obs_indexes), dtype=int)
+                                                      * i_event)
 
     # insert new events
-    start_obs_indexes = np.insert(start_obs_indexes, where_to_insert_event_indexes, split_obs_indexes_to_insert)
+    start_obs_indexes = np.insert(start_obs_indexes, where_to_insert_event_indexes + 1, split_obs_indexes_to_insert)
+    end_obs_indexes = np.insert(end_obs_indexes, where_to_insert_event_indexes, split_obs_indexes_to_insert)
 
     return start_obs_indexes, end_obs_indexes
 
