@@ -24,32 +24,36 @@ for i_event, event in enumerate(df.itertuples()):
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
     dss = []
     for yyyymm in YYYYMM_keys:
-        dss.append(xr.open_dataset(prefix_era5_data+yyyymm))
+        dss.append(xr.open_dataset(f'{prefix_era5_data}{yyyymm}.nc'))
         print('Open '+prefix_era5_data+yyyymm)
     ds = xr.concat(dss, dim='time')
 
     # interpolate lons and lats
-    lat = ds.latidude[np.argmin(abs(ds.latitude - event.latitude))]
-    lon = ds.longitude[np.argmin(abs(ds.longitude - event.longitude))]
+    lat = ds.latitude[np.argmin(abs(ds.latitude - event.latitude_start))]
+    lon = ds.longitude[np.argmin(abs(ds.longitude - event.longitude_start))]
     ds = ds.sel(time=times, latitude=lat, longitude=lon)
-    abs_speed = np.hypot(ds.u, ds.v)
+    abs_speed = np.hypot(ds.u10, ds.v10)
     V_mean[i_event] = np.mean(abs_speed)
-    u_mean[i_event] = np.mean(ds.u)
-    v_mean[i_event] = np.mean(ds.v)
+    u_mean[i_event] = np.mean(ds.u10)
+    v_mean[i_event] = np.mean(ds.v10)
     V_max[i_event] = np.max(abs_speed)
-    u_max[i_event] = np.max(ds.u)
-    v_max[i_event] = np.max(ds.v)
+    u_max[i_event] = np.max(ds.u10)
+    v_max[i_event] = np.max(ds.v10)
     V_std[i_event] = np.std(abs_speed)
-    u_std[i_event] = np.std(ds.u)
-    v_std[i_event] = np.std(ds.v)
+    u_std[i_event] = np.std(ds.u10)
+    v_std[i_event] = np.std(ds.v10)
 
-df.assign(V_mean=V_mean,
-          u_mean=u_mean,
-          v_mean=v_mean,
-          V_max=V_max,
-          u_max=u_max,
-          v_max=v_max,
-          V_std=V_std,
-          u_std=u_std,
-          v_std=v_std
-          )
+    ds.close()
+
+df = df.assign(V_mean=V_mean,
+               u_mean=u_mean,
+               v_mean=v_mean,
+               V_max=V_max,
+               u_max=u_max,
+               v_max=v_max,
+               V_std=V_std,
+               u_std=u_std,
+               v_std=v_std
+               )
+
+df.to_csv('data/events_wind.csv')
