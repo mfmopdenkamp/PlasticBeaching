@@ -5,7 +5,7 @@ import xarray as xr
 
 df = pd.read_csv('data/events.csv', parse_dates=['time_start', 'time_end'], infer_datetime_format=True)
 
-prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
+prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
 n = df.shape[0]
 V_mean = np.zeros(n)
 u_mean = np.zeros(n)
@@ -24,7 +24,7 @@ for i_event, event in enumerate(df.itertuples()):
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
     file_paths = [prefix_era5_data+yymm+'.nc' for yymm in YYYYMM_keys]
     if len(file_paths) > 1:
-        ds = xr.open_mfdataset([file_paths], concat_dim='time')
+        ds = xr.open_mfdataset(file_paths)
     else:
         ds = xr.open_dataset(file_paths[0])
 
