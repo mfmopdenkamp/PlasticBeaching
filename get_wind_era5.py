@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 
-df = pd.read_csv('data/events.csv', parse_dates=['time_start', 'time_end'], infer_datetime_format=True)
+df = pd.read_csv('data/event_locations.csv', parse_dates=['time_start', 'time_end'], index_col='ID',
+                 infer_datetime_format=True)
 
 prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
 n = df.shape[0]

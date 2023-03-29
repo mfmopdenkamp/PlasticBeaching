@@ -2,6 +2,9 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.experimental import enable_halving_search_cv
+from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 
 df_prep = pd.read_csv('data/events_prep.csv').drop(columns='ID')
 df_wind = pd.read_csv('data/events_wind.csv').drop(columns=['ID', 'Unnamed: 0'])
@@ -16,3 +19,6 @@ diki = cor['beaching_flags'].sort_values(ascending=False)[1:]
 plt.bar(diki.index, diki)
 plt.xticks(rotation=20)
 plt.show()
+
+estimator = RandomForestClassifier()
+
