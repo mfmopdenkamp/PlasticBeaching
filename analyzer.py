@@ -161,7 +161,7 @@ def drogue_presence(ds):
 
     ids = ds.ids.values
     IDs = ds.ID.values
-    for i_traj, (drogue_lost_date, ID) in enumerate(zip(drogue_lost_dates, IDs)):
+    for (drogue_lost_date, ID) in zip(drogue_lost_dates, IDs):
         # if drogue lost date is not known, assume it is always present
         if not np.isnat(drogue_lost_date):
             obs = np.where(ids == ID)[0]
