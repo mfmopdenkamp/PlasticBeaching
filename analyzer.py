@@ -82,7 +82,9 @@ def determine_beaching_obs(distance, velocity, max_distance_m, max_velocity_mps,
         if d < max_distance_m and v < max_velocity_mps:
             count += 1
 
-            if count >= threshold_count:
+            if count == threshold_count:
+                beaching_tags[i-threshold_count:i] = True
+            elif count > threshold_count:
                 beaching_tags[i] = True
 
         else:

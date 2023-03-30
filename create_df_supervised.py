@@ -10,21 +10,21 @@ plot_things = False
 ds = pickm.pickle_wrapper('gdp_random_subset_1', load_data.load_random_subset)
 shoreline_resolution = 'i'
 #%%
-# obs = ds.obs[np.invert(drogue_presence(ds))]
-# traj = traj_from_obs(ds, obs)
-# ds = ds.isel(obs=obs, traj=traj)
+obs = ds.obs[np.invert(drogue_presence(ds))]
+traj = traj_from_obs(ds, obs)
+ds = ds.isel(obs=obs, traj=traj)
 
 #%%
 def get_event_indexes_from_mask(mask, ds, duration_threshold=6):
     # first determine start and end indexes solely based on the mask
     mask = mask.astype(int)
-    start_obs_indexes = np.where(np.diff(mask) == 1)[0] + 1
-    end_obs_indexes = np.where(np.diff(mask) == -1)[0] + 1
+    start_obs = np.where(np.diff(mask) == 1)[0] + 1
+    end_obs = np.where(np.diff(mask) == -1)[0] + 1
 
     if mask[0] and not mask[1]:
-        start_obs_indexes = np.insert(start_obs_indexes, 0, 0)
+        start_obs = np.insert(start_obs, 0, 0)
     if mask[-1]:
-        end_obs_indexes = np.append(end_obs_indexes, len(mask))
+        end_obs = np.append(end_obs, len(mask))
 
     # check if sequencing events should be merged to one event
      # hours
@@ -32,47 +32,20 @@ def get_event_indexes_from_mask(mask, ds, duration_threshold=6):
 
     times = ds.time.values
     ids = ds.ids.values
-    for i_event in range(1, len(start_obs_indexes)):
-        duration = (times[start_obs_indexes[i_event]] - times[end_obs_indexes[i_event-1]]) / np.timedelta64(1, 'h')
+    for i_event in range(1, len(start_obs)):
+        duration = (times[start_obs[i_event]] - times[end_obs[i_event-1]]) / np.timedelta64(1, 'h')
         if 0 < duration <= duration_threshold and ids[i_event] == ids[i_event-1]:
             event_indexes_to_delete.append(i_event-1)
-            start_obs_indexes[i_event] = start_obs_indexes[i_event-1]
+            start_obs[i_event] = start_obs[i_event-1]
 
-    start_obs_indexes = np.delete(start_obs_indexes, event_indexes_to_delete)
-    end_obs_indexes = np.delete(end_obs_indexes, event_indexes_to_delete)
+    start_obs = np.delete(start_obs, event_indexes_to_delete)
+    end_obs = np.delete(end_obs, event_indexes_to_delete)
 
-    return start_obs_indexes, end_obs_indexes
+    return start_obs, end_obs
+
 
 close_2_shore = ds.aprox_distance_shoreline < 10
-event_start_indexes, event_end_indexes = get_event_indexes_from_mask(close_2_shore, ds)
-
-
-#%%
-def split_events(start_obs_indexes, end_obs_indexes, length_threshold=24):
-    # Split events based on time. Use index for this, since they correspond to exactly 1 hour.
-    # New events may not be smaller than the length threshold!
-    # NB: What if split is splitting beaching event?
-    split_obs_indexes_to_insert = np.array([], dtype=int)
-    where_to_insert_event_indexes = np.array([], dtype=int)
-
-    event_lengths = end_obs_indexes - start_obs_indexes
-    split_length = int(length_threshold / 2)
-    for i_event, event_length in enumerate(event_lengths):
-        if event_length >= length_threshold:
-            event_split_obs_indexes = np.arange(split_length, event_length - split_length + 1, split_length) \
-                                      + start_obs_indexes[i_event]  # start counting from start event instead of zero
-            split_obs_indexes_to_insert = np.append(split_obs_indexes_to_insert, event_split_obs_indexes)
-            where_to_insert_event_indexes = np.append(where_to_insert_event_indexes,
-                                                      np.ones(len(event_split_obs_indexes), dtype=int)
-                                                      * i_event)
-
-    # insert new events
-    start_obs_indexes = np.insert(start_obs_indexes, where_to_insert_event_indexes + 1, split_obs_indexes_to_insert)
-    end_obs_indexes = np.insert(end_obs_indexes, where_to_insert_event_indexes, split_obs_indexes_to_insert)
-
-    return  start_obs_indexes, end_obs_indexes
-
-
+event_start_obs, event_end_obs = get_event_indexes_from_mask(close_2_shore, ds)
 
 
 #%%
@@ -94,7 +67,62 @@ def get_beaching_flags(ds, event_start_indexes, event_end_indexes):
     return beaching_flags, beaching_obs_list
 
 
-beaching_flags, beaching_obs_list = get_beaching_flags(ds, event_start_indexes, event_end_indexes)
+beaching_flags, beaching_obs_list = get_beaching_flags(ds, event_start_obs, event_end_obs)
+
+
+#%%
+def split_events(start_obs, end_obs, beaching_flags, beaching_obs_list, length_threshold=24):
+    # Split events based on time. Use index for this, since they correspond to exactly 1 hour.
+    # New events may not be smaller than the length threshold!
+    # NB: What if split is splitting beaching event?
+    split_obs_indexes_to_insert = np.array([], dtype=int)
+    where_to_insert_event_indexes = np.array([], dtype=int)
+
+    event_lengths = end_obs - start_obs
+    split_length = int(length_threshold / 2)
+    i_beaching_event = 0
+    for i_event, (start_ob, end_ob, event_length, beaching_flag) in enumerate(zip(start_obs, end_obs,
+                                                                                  event_lengths, beaching_flags)):
+
+        # determine split points of events based on their length
+        if event_length >= length_threshold:
+
+            # if beaching took place, determine consecutive zeros which might split
+            no_beach_count = 0
+            if beaching_flag:
+                event_split_obs_indexes = np.array([], dtype=int)
+                for ob in range(start_ob, end_ob):
+
+                    if ob not in beaching_obs_list[i_beaching_event]:
+                        no_beach_count += 1
+
+                        if no_beach_count >= length_threshold:
+                            # add split event
+                            event_split_obs_indexes = np.append(event_split_obs_indexes, ob - split_length + 1)
+                            no_beach_count -= split_length
+
+                    else:
+                        no_beach_count = 0
+
+                i_beaching_event += 1
+
+            else:
+                event_split_obs_indexes = np.arange(split_length, event_length - split_length + 1, split_length) \
+                                          + start_ob  # start counting from start event instead of zero
+
+            split_obs_indexes_to_insert = np.append(split_obs_indexes_to_insert, event_split_obs_indexes)
+            where_to_insert_event_indexes = np.append(where_to_insert_event_indexes,
+                                                      np.ones(len(event_split_obs_indexes), dtype=int)
+                                                      * i_event)
+
+    # insert new events
+    start_obs = np.insert(start_obs, where_to_insert_event_indexes + 1, split_obs_indexes_to_insert)
+    end_obs = np.insert(end_obs, where_to_insert_event_indexes, split_obs_indexes_to_insert)
+
+    return start_obs, end_obs
+
+
+split_events(np.array([0]), np.array([20]), np.array([True]), [[5,6,9,10,11,13,19]], 4)
 
 
 #%%
@@ -148,18 +176,18 @@ def get_distance_and_direction(ds):
         print(f'No near shore found for events : {no_near_shore_found_indexes}')
     return shortest_distances, distances_east, distances_north
 
-shortest_distances, distances_east, distances_north = get_distance_and_direction(ds.isel(obs=event_start_indexes))
+shortest_distances, distances_east, distances_north = get_distance_and_direction(ds.isel(obs=event_start_obs))
 
 #%% Create supervised dataframe
-n = len(event_start_indexes)
-df = pd.DataFrame(data={'time_start': ds.time[event_start_indexes],
-                        'time_end': ds.time[event_end_indexes-1],
-                        'latitude_start': ds.latitude[event_start_indexes],
-                        'latitude_end': ds.latitude[event_end_indexes-1],
-                        'longitude_start': ds.longitude[event_start_indexes],
-                        'longitude_end': ds.longitude[event_end_indexes-1],
-                        've': ds.ve[event_start_indexes],
-                        'vn': ds.vn[event_start_indexes],
+n = len(event_start_obs)
+df = pd.DataFrame(data={'time_start': ds.time[event_start_obs],
+                        'time_end': ds.time[event_end_obs - 1],
+                        'latitude_start': ds.latitude[event_start_obs],
+                        'latitude_end': ds.latitude[event_end_obs - 1],
+                        'longitude_start': ds.longitude[event_start_obs],
+                        'longitude_end': ds.longitude[event_end_obs - 1],
+                        've': ds.ve[event_start_obs],
+                        'vn': ds.vn[event_start_obs],
                         'nearest shore': shortest_distances,
                         'de': distances_east,
                         'dn': distances_north,
@@ -199,7 +227,7 @@ if plot_things:
 
     beaching_event_obs = []
     for i_b in np.where(beaching_flags)[0]:
-        beaching_event_obs.append([i for i in range(event_start_indexes[i_b], event_end_indexes[i_b])])
+        beaching_event_obs.append([i for i in range(event_start_obs[i_b], event_end_obs[i_b])])
 
     extent_offset = 0.1
     for i in range(len(beaching_event_obs)):
