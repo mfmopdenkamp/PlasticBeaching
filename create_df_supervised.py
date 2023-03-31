@@ -75,7 +75,7 @@ def split_events(start_obs, end_obs, beaching_flags, beaching_obs_list, length_t
     # Split events based on time. Use index for this, since they correspond to exactly 1 hour.
     # New events may not be smaller than the length threshold!
     # NB: What if split is splitting beaching event?
-    split_obs_indexes_to_insert = np.array([], dtype=int)
+    split_obs_to_insert = np.array([], dtype=int)
     where_to_insert_event_indexes = np.array([], dtype=int)
 
     event_lengths = end_obs - start_obs
@@ -88,9 +88,12 @@ def split_events(start_obs, end_obs, beaching_flags, beaching_obs_list, length_t
         if event_length >= length_threshold:
 
             # if beaching took place, determine consecutive zeros which might split
-            no_beach_count = 0
             if beaching_flag:
-                event_split_obs_indexes = np.array([], dtype=int)
+                no_beach_count = 0
+                event_split_obs = np.array([], dtype=int)
+
+                beach_encountered = False
+                beaching_flags_to_insert = np.array([], dtype=bool)
                 for ob in range(start_ob, end_ob):
 
                     if ob not in beaching_obs_list[i_beaching_event]:
@@ -98,26 +101,31 @@ def split_events(start_obs, end_obs, beaching_flags, beaching_obs_list, length_t
 
                         if no_beach_count >= length_threshold:
                             # add split event
-                            event_split_obs_indexes = np.append(event_split_obs_indexes, ob - split_length + 1)
+                            event_split_obs = np.append(event_split_obs, ob - split_length + 1)
+                            beaching_flags_to_insert = np.append(beaching_flags_to_insert, beach_encountered)
+
+                            beach_encountered = False
                             no_beach_count -= split_length
 
                     else:
                         no_beach_count = 0
+                        beach_encountered = True
 
                 i_beaching_event += 1
 
             else:
-                event_split_obs_indexes = np.arange(split_length, event_length - split_length + 1, split_length) \
+                event_split_obs = np.arange(split_length, event_length - split_length + 1, split_length) \
                                           + start_ob  # start counting from start event instead of zero
 
-            split_obs_indexes_to_insert = np.append(split_obs_indexes_to_insert, event_split_obs_indexes)
+            split_obs_to_insert = np.append(split_obs_to_insert, event_split_obs)
             where_to_insert_event_indexes = np.append(where_to_insert_event_indexes,
-                                                      np.ones(len(event_split_obs_indexes), dtype=int)
+                                                      np.ones(len(event_split_obs), dtype=int)
                                                       * i_event)
 
     # insert new events
-    start_obs = np.insert(start_obs, where_to_insert_event_indexes + 1, split_obs_indexes_to_insert)
-    end_obs = np.insert(end_obs, where_to_insert_event_indexes, split_obs_indexes_to_insert)
+    start_obs = np.insert(start_obs, where_to_insert_event_indexes + 1, split_obs_to_insert)
+    end_obs = np.insert(end_obs, where_to_insert_event_indexes, split_obs_to_insert)
+
 
     return start_obs, end_obs
 
@@ -191,7 +199,7 @@ df = pd.DataFrame(data={'time_start': ds.time[event_start_obs],
                         'nearest shore': shortest_distances,
                         'de': distances_east,
                         'dn': distances_north,
-                        'beaching_flags': beaching_flags})
+                        'beaching_flag': beaching_flags})
 df['time_start'] = pd.to_datetime(df['time_start'])
 df.sort_values('time_start', inplace=True)
 df.filter(['time_start', 'time_end', 'latitude_start', 'longitude_start'], axis=1).to_csv('data/event_locations.csv',
