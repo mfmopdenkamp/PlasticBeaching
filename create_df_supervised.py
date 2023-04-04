@@ -1,5 +1,5 @@
 import numpy as np
-
+from sklearn.linear_model import LinearRegression
 import picklemanager as pickm
 import pandas as pd
 from analyzer import *
@@ -8,7 +8,7 @@ import plotter
 plot_things = False
 
 ds = pickm.pickle_wrapper('gdp_random_subset_1', load_data.load_random_subset)
-shoreline_resolution = 'i'
+shoreline_resolution = 'h'
 #%%
 obs = ds.obs[np.invert(drogue_presence(ds))]
 traj = traj_from_obs(ds, obs)
@@ -126,7 +126,6 @@ def split_events(start_obs, end_obs, beaching_flags, beaching_obs_list, length_t
     start_obs = np.insert(start_obs, where_to_insert_event_indexes + 1, split_obs_to_insert)
     end_obs = np.insert(end_obs, where_to_insert_event_indexes, split_obs_to_insert)
 
-
     return start_obs, end_obs
 
 
@@ -152,17 +151,18 @@ def get_distance_and_direction(ds):
     shortest_distances = np.ones(n, dtype=dtype) * init_distance
     distances_east = np.ones(n, dtype=dtype) * init_distance
     distances_north = np.ones(n, dtype=dtype) * init_distance
+    shoreline_angles = np.ones(n, dtype=np.float16) * 9
     no_near_shore_found_indexes = []
 
-    for i_event, event in enumerate(df_gdp.itertuples()):
-        min_lon = event.longitude - 0.15
+    for i_coord, coord in enumerate(df_gdp.itertuples()):
+        min_lon = coord.longitude - 0.15
         if min_lon < -180:
             min_lon += 360
-        max_lon = event.longitude + 0.15
+        max_lon = coord.longitude + 0.15
         if max_lon > 180:
             max_lon -= 360
-        min_lat = event.latitude - 0.15
-        max_lat = event.latitude + 0.15
+        min_lat = coord.latitude - 0.15
+        max_lat = coord.latitude + 0.15
 
         df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
                           (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]
@@ -170,16 +170,36 @@ def get_distance_and_direction(ds):
         if not df_shore_box.empty:
             i_nearest_shore_point = None
 
+            # determine shortest distance between the subtrajectory and index belonging to this point
             for i_shore, shore_point in zip(df_shore_box.index, df_shore_box.geometry):
-                distance = event.geometry.distance(shore_point)
-                if distance < shortest_distances[i_event]:
-                    shortest_distances[i_event] = distance
+                distance = coord.geometry.distance(shore_point)
+                if distance < shortest_distances[i_coord]:
+                    shortest_distances[i_coord] = distance
                     i_nearest_shore_point = i_shore
 
-            distances_north[i_event] = event.geometry.y - df_shore_box.geometry[i_nearest_shore_point].y
-            distances_east[i_event] = event.geometry.x - df_shore_box.geometry[i_nearest_shore_point].x
+            # determine direction to this point
+            distances_north[i_coord] = coord.geometry.y - df_shore_box.geometry[i_nearest_shore_point].y
+            distances_east[i_coord] = coord.geometry.x - df_shore_box.geometry[i_nearest_shore_point].x
+
+            # determine shoreline direction
+            x = np.array(df_shore_box.geometry.x.values).reshape(-1, 1)
+            y = np.array(df_shore_box.geometry.y.values)
+
+            lr = LinearRegression()
+            lr.fit(x, y)
+            intercept = lr.intercept_
+            slope = lr.coef_[0]
+            angle = np.arctan(slope)
+            shoreline_angles[i_coord] = angle
+
+            # df_shore_box.plot()
+            # plt.annotate(f'slope = {slope:.2f}\nangle = {angle:.2f}', xy=(0.9, 0.9), xycoords='axes fraction')
+            # plt.plot(x.reshape(-1), np.polyval([slope, intercept], x.reshape(-1)))
+            # plt.scatter(coord.geometry.x, coord.geometry.y, s=10, c='r')
+            # plt.show()
+
         else:
-            no_near_shore_found_indexes.append(i_event)
+            no_near_shore_found_indexes.append(i_coord)
     if no_near_shore_found_indexes:
         print(f'No near shore found for events : {no_near_shore_found_indexes}')
     return shortest_distances, distances_east, distances_north

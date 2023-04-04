@@ -1,6 +1,6 @@
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, message="iteritems")
-
+import load_data
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,9 +11,7 @@ import scipy.stats as stats
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 
-df_prep = pd.read_csv('data/events_prep_non_splitted_drogued.csv', parse_dates=['time_start', 'time_end']).drop(columns='ID')
-df_wind = pd.read_csv('data/events_wind.csv', parse_dates=['time_start', 'time_end']).drop(columns=['ID', 'Unnamed: 0'])
-df = pd.merge(df_prep, df_wind)
+df = load_data.get_sub_trajs(file_name='events_prep_non_splitted_drogued.csv')
 
 cor = df.corr(numeric_only=True)
 
@@ -43,7 +41,7 @@ y = df[y_column]
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.5, random_state=42, shuffle=False)
 
-param_grid = {'n_estimators':[10,50,100], 'min_samples_split':[2, 5, 10, 20]}
+param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20]}
 estimator = RandomForestClassifier()
 grid_search = HalvingGridSearchCV(estimator, param_grid=param_grid, verbose=2)
 grid_search.fit(x, y)
