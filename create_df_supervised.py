@@ -6,7 +6,7 @@ import load_data
 import plotter
 plot_things = False
 
-ds = pickm.pickle_wrapper('gdp_random_subset_1', load_data.load_random_subset)
+ds = pickm.pickle_wrapper('gdp_random_subset_2', load_data.load_random_subset, 5)
 shoreline_resolution = 'h'
 #%%
 obs = ds.obs[np.invert(drogue_presence(ds))]
@@ -73,7 +73,10 @@ def split_subtraj(start_obs, end_obs, beaching_flags, beaching_obs_list, length_
     # Split subtrajs based on time. Use index for this, since they correspond to exactly 1 hour.
     # New subtrajs may not be smaller than the length threshold!
     split_obs_to_insert = np.array([], dtype=int)
-    where_to_insert_subtraj_indexes = np.array([], dtype=int)
+    beaching_flags_to_insert = np.array([], dtype=bool)
+    where_to_insert_new_subtraj = np.array([], dtype=int)
+
+    where_to_change_beaching_flags = np.array([], dtype=int)
 
     subtraj_lengths = end_obs - start_obs
     split_length = int(length_threshold / 2)
@@ -90,7 +93,7 @@ def split_subtraj(start_obs, end_obs, beaching_flags, beaching_obs_list, length_
                 subtraj_split_obs = np.array([], dtype=int)
 
                 beach_encountered = False
-                beaching_flags_to_insert = np.array([], dtype=bool)
+                new_beaching_flags_from_subtraj = np.array([], dtype=bool)
                 for ob in range(start_ob, end_ob):
 
                     if ob not in beaching_obs_list[i_beaching_event]:
@@ -99,7 +102,7 @@ def split_subtraj(start_obs, end_obs, beaching_flags, beaching_obs_list, length_
                         if no_beach_count >= length_threshold:
                             # add split subtraj
                             subtraj_split_obs = np.append(subtraj_split_obs, ob - split_length + 1)
-                            beaching_flags_to_insert = np.append(beaching_flags_to_insert, beach_encountered)
+                            new_beaching_flags_from_subtraj = np.append(new_beaching_flags_from_subtraj, beach_encountered)
 
                             beach_encountered = False
                             no_beach_count -= split_length
@@ -109,21 +112,29 @@ def split_subtraj(start_obs, end_obs, beaching_flags, beaching_obs_list, length_
                         beach_encountered = True
 
                 i_beaching_event += 1
+                # check whether beaching flag should be changed to zero
+                if len(new_beaching_flags_from_subtraj) > 0 and not beach_encountered:
+                    where_to_change_beaching_flags = np.append(where_to_change_beaching_flags, i_subtraj)
 
             else:
                 subtraj_split_obs = np.arange(split_length, subtraj_length - split_length + 1, split_length) \
                                           + start_ob  # start counting from start subtraj instead of zero
 
             split_obs_to_insert = np.append(split_obs_to_insert, subtraj_split_obs)
-            where_to_insert_subtraj_indexes = np.append(where_to_insert_subtraj_indexes,
+            beaching_flags_to_insert = np.append(beaching_flags_to_insert, new_beaching_flags_from_subtraj)
+            where_to_insert_new_subtraj = np.append(where_to_insert_new_subtraj,
                                                       np.ones(len(subtraj_split_obs), dtype=int)
                                                       * i_subtraj)
 
     # insert new subtrajs
-    start_obs = np.insert(start_obs, where_to_insert_subtraj_indexes + 1, split_obs_to_insert)
-    end_obs = np.insert(end_obs, where_to_insert_subtraj_indexes, split_obs_to_insert)
+    start_obs = np.insert(start_obs, where_to_insert_new_subtraj + 1, split_obs_to_insert)
+    end_obs = np.insert(end_obs, where_to_insert_new_subtraj, split_obs_to_insert)
+    beaching_flags = np.insert(beaching_flags, where_to_insert_new_subtraj, beaching_flags_to_insert)
 
-    return start_obs, end_obs
+    # change beaching flags
+    beaching_flags[where_to_change_beaching_flags] = False
+
+    return start_obs, end_obs, beaching_flags
 
 
 split_subtraj(np.array([0]), np.array([20]), np.array([True]), [[5, 6, 9, 10, 11, 13, 19]], 4)
@@ -206,7 +217,7 @@ def get_shore_parameters(ds):
 
 shortest_distances, distances_east, distances_north, no_near_shore_found_indexes = get_shore_parameters(ds.isel(obs=start_obs))
 
-#%% Drop subtrajs where no shore was found
+#%% Drop subtrajs where no shore was found (for some reason!!!)
 start_obs = np.delete(start_obs, no_near_shore_found_indexes)
 end_obs = np.delete(end_obs, no_near_shore_found_indexes)
 shortest_distances = np.delete(shortest_distances, no_near_shore_found_indexes)
