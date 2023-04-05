@@ -70,7 +70,7 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     return shortest_distances
 
 
-def determine_beaching_obs(distance, velocity, max_distance_m, max_velocity_mps, threshold_count=4):
+def get_mask_drifter_on_shore(distance, velocity, max_distance_m, max_velocity_mps, threshold_count=4):
     if len(distance) != len(velocity):
         raise ValueError('distance and velocity array must have the same length!')
 
@@ -121,9 +121,9 @@ def tag_drifters_beached(ds, distance_threshold=1000):
             obs = obs_from_traj(ds, traj)
             ds_i = ds.isel(obs=obs, traj=traj)
 
-            beaching_rows = determine_beaching_obs(ds_i.aprox_distance_shoreline.values[-10:],
-                                                   np.hypot(ds_i.vn.values[-10:], ds_i.ve.values[-10:]),
-                                                   distance_threshold, 0.1)
+            beaching_rows = get_mask_drifter_on_shore(ds_i.aprox_distance_shoreline.values[-10:],
+                                                      np.hypot(ds_i.vn.values[-10:], ds_i.ve.values[-10:]),
+                                                      distance_threshold, 0.1)
 
             if beaching_rows[-1]:
                 print(f'Found beaching of drifter {ds_i.ID.values}')

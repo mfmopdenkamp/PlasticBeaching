@@ -2,10 +2,9 @@ import numpy as np
 import pandas as pd
 import load_data
 
-df = pd.read_csv('data/events_prep_non_splitted_drogued.csv', parse_dates=)
+df = load_data.get_subtrajs('events_prep_non_splitted_drogued.csv')
 
-df_shoreline = load_data.get_shoreline('f', points_only=True)
-
-
-for lat, lon in zip(df['latitude_start'], df['latitude_end']):
-    pass
+# check if the hypothenuse of de and dn is equal to the nearest distance to the coast
+differences = np.empty(len(df))
+for i, (de, dn, d) in enumerate(zip(df['de'], df['dn'], df['nearest shore'])):
+    differences[i] = np.hypot(de, dn) - d

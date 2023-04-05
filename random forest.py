@@ -11,7 +11,7 @@ import scipy.stats as stats
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 
-df = load_data.get_sub_trajs(file_name='events_prep_non_splitted_drogued.csv')
+df = load_data.get_subtrajs(file_name='events_prep_non_splitted_drogued.csv')
 
 cor = df.corr(numeric_only=True)
 
