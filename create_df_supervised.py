@@ -137,7 +137,7 @@ def split_subtraj(start_obs, end_obs, beaching_flags, beaching_obs_list, length_
     return start_obs, end_obs, beaching_flags
 
 
-split_subtraj(np.array([0]), np.array([20]), np.array([True]), [[5, 6, 9, 10, 11, 13, 19]], 4)
+split_subtraj(np.array([2]), np.array([20]), np.array([True]), [[5, 6, 9, 10, 11, 13]], 4)
 
 
 #%%
