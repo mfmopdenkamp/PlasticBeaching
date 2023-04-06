@@ -77,7 +77,7 @@ def get_mask_drifter_on_shore(distance, velocity, max_distance_m, max_velocity_m
     beaching_tags = np.zeros(len(distance), dtype=bool)
 
     count = 0
-    threshold_count = threshold_count
+
     for i, (d, v) in enumerate(zip(distance, velocity)):
         if d < max_distance_m and v < max_velocity_mps:
             count += 1
@@ -89,6 +89,32 @@ def get_mask_drifter_on_shore(distance, velocity, max_distance_m, max_velocity_m
 
         else:
             count = 0
+
+    return beaching_tags
+
+
+def get_mask_drifter_on_shore_v2(ds, threshold_distance_m, max_distance_travelled_m, threshold_h=4):
+
+    lats = ds.latitude.values
+    lons = ds.longitude.values
+    df_gdp = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
+                              geometry=gpd.points_from_xy(lons, lats),
+                              crs='epsg:4326')
+    df_gdp.to_crs(crs=3853, inplace=True)
+
+    x = df_gdp.geometry.x.values
+    y = df_gdp.geometry.y.values
+
+    # compute the distances travelled by the drifter between each observation
+    distances_between_points_m = np.hypot(np.diff(x), np.diff(y))
+    distance_between_threshold = np.hypot(np.array([x[i] - x[i - threshold_h] for i in range(threshold_h, len(x))]),
+                                          np.array([y[i] - y[i - threshold_h] for i in range(threshold_h, len(y))]))
+
+    beaching_tags = np.zeros(len(lats), dtype=bool)
+
+    for i, distance in enumerate(distance_between_threshold):
+        if distance and distances_between_points_m[i - threshold_h:i].sum() < max_distance_travelled_m:
+            beaching_tags[i - threshold_h:i] = True
 
     return beaching_tags
 

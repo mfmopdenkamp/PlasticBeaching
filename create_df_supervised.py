@@ -16,9 +16,12 @@ obs = ds.obs[np.invert(drogue_presence(ds))]
 traj = traj_from_obs(ds, obs)
 ds = ds.isel(obs=obs, traj=traj)
 
+threshold_duration_hours = 12
+threshold_approximate_distance_km = 12
+threshold_split_length_h = 24
 
 # %%
-def get_subtraj_indexes_from_mask(mask, ds, duration_threshold=6):
+def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
     # first determine start and end indexes solely based on the mask
     mask = mask.astype(int)
     start_obs = np.where(np.diff(mask) == 1)[0] + 1
@@ -36,7 +39,7 @@ def get_subtraj_indexes_from_mask(mask, ds, duration_threshold=6):
     ids = ds.ids.values
     for i_sj in range(1, len(start_obs)):
         duration = (times[start_obs[i_sj]] - times[end_obs[i_sj - 1]]) / np.timedelta64(1, 'h')
-        if 0 < duration <= duration_threshold and ids[i_sj] == ids[i_sj - 1]:
+        if 0 < duration <= duration_threshold_h and ids[i_sj] == ids[i_sj - 1]:
             subtraj_indexes_to_delete.append(i_sj - 1)
             start_obs[i_sj] = start_obs[i_sj - 1]
 
@@ -46,8 +49,8 @@ def get_subtraj_indexes_from_mask(mask, ds, duration_threshold=6):
     return start_obs, end_obs
 
 
-close_2_shore = ds.aprox_distance_shoreline < 10
-start_obs, end_obs = get_subtraj_indexes_from_mask(close_2_shore, ds)
+close_2_shore = ds.aprox_distance_shoreline < threshold_approximate_distance_km
+start_obs, end_obs = get_subtraj_indexes_from_mask(close_2_shore, ds, duration_threshold_h=threshold_duration_hours)
 
 
 # %%
@@ -73,7 +76,7 @@ beaching_flags, beaching_obs_list = get_beaching_flags(ds, start_obs, end_obs)
 
 
 # %%
-def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_length=24):
+def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_length_h=24):
     # Split subtrajs based on time. Use index for this, since they correspond to exactly 1 hour.
     # New subtrajs may not be smaller than the length threshold!
     split_obs_to_insert = np.array([], dtype=int)
@@ -89,7 +92,7 @@ def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_
                                                                                       subtraj_lengths, beaching_flags)):
 
         # determine split points of subtrajs based on their length
-        if subtraj_length >= split_length * 2:
+        if subtraj_length >= split_length_h * 2:
 
             # if beaching took place, determine consecutive zeros which might split
             new_beaching_flags_from_subtraj = np.array([], dtype=bool)
@@ -104,14 +107,14 @@ def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_
                     if ob not in beaching_obs_list[i_beaching_event]:
                         no_beach_count += 1
 
-                        if no_beach_count >= split_length:
+                        if no_beach_count >= split_length_h:
                             # add split subtraj
-                            subtraj_split_obs = np.append(subtraj_split_obs, ob - split_length + 1)
+                            subtraj_split_obs = np.append(subtraj_split_obs, ob - split_length_h + 1)
                             new_beaching_flags_from_subtraj = np.append(new_beaching_flags_from_subtraj,
                                                                         beach_encountered)
 
                             beach_encountered = False
-                            no_beach_count -= split_length
+                            no_beach_count -= split_length_h
 
                     else:
                         no_beach_count = 0
@@ -124,7 +127,7 @@ def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_
                     where_to_change_beaching_flags = np.append(where_to_change_beaching_flags, i_subtraj)
 
             else:
-                subtraj_split_obs = np.arange(split_length, subtraj_length - split_length + 1, split_length) \
+                subtraj_split_obs = np.arange(split_length_h, subtraj_length - split_length_h + 1, split_length_h) \
                                     + start_ob  # start counting from start subtraj instead of zero
                 new_beaching_flags_from_subtraj = np.append(new_beaching_flags_from_subtraj,
                                                             np.zeros(len(subtraj_split_obs), dtype=bool))
@@ -148,7 +151,7 @@ def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_
 
 
 start_obs, end_obs, beaching_flags = split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list,
-                                                    split_length=24)
+                                                    split_length_h=threshold_split_length_h)
 
 
 # %%
