@@ -34,7 +34,7 @@ def find_data_directory():
 data_dir_name = find_data_directory()
 
 
-def drifter_data_hourly(load_into_memory=True, filename='gdp_v2.00.nc'):
+def drifter_data_hourly(load_into_memory=False, filename='gdp_v2.00.nc'):
     f = data_dir_name + filename
     if load_into_memory:
         ds = xr.load_dataset(f, decode_cf=True, decode_times=False)
