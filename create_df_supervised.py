@@ -9,7 +9,9 @@ plot_things = False
 
 percentage = 5
 random_set = 2
-ds = pickm.pickle_wrapper(f'gdp_random_subset_{percentage}_{random_set}', load_data.load_random_subset, percentage)
+gps_only = True
+ds = pickm.pickle_wrapper(f'gdp_random_subset_{percentage}_{random_set}{("gps_only" if gps_only else "")}',
+                          load_data.load_random_subset, percentage, gps_only)
 shoreline_resolution = 'h'
 # %%
 obs = ds.obs[np.invert(drogue_presence(ds))]
@@ -24,24 +26,35 @@ threshold_split_length_h = 24
 def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
     # first determine start and end indexes solely based on the mask
     mask = mask.astype(int)
-    start_obs = np.where(np.diff(mask) == 1)[0] + 1
-    end_obs = np.where(np.diff(mask) == -1)[0] + 1
+    obs = ds.obs.values
+    start_obs = obs[1:][np.diff(mask) == 1]
+    end_obs = obs[1:][np.diff(mask) == -1]
 
-    if mask[0] and not mask[1]:
+    if mask[0]:
         start_obs = np.insert(start_obs, 0, 0)
     if mask[-1]:
         end_obs = np.append(end_obs, len(mask))
+
+    # split subtrajs that dont belong to single drifter
+    ids = ds.ids.values
+
+    obs_where_to_split = obs[1:][np.array(np.diff(ids) & mask[:-1] & mask[1:], dtype=bool)]
+    start_obs = np.append(start_obs, obs_where_to_split)
+    end_obs = np.append(end_obs, obs_where_to_split)
+    start_obs = np.sort(start_obs)
+    end_obs = np.sort(end_obs)
 
     # check if sequencing subtraj should be merged to one subtraj
     subtraj_indexes_to_delete = []
 
     times = ds.time.values
-    ids = ds.ids.values
+
     for i_sj in range(1, len(start_obs)):
-        duration = (times[start_obs[i_sj]] - times[end_obs[i_sj - 1]]) / np.timedelta64(1, 'h')
-        if 0 < duration <= duration_threshold_h and ids[i_sj] == ids[i_sj - 1]:
-            subtraj_indexes_to_delete.append(i_sj - 1)
-            start_obs[i_sj] = start_obs[i_sj - 1]
+        if ids[i_sj] == ids[i_sj - 1]:
+            duration = (times[start_obs[i_sj]] - times[end_obs[i_sj - 1]]) / np.timedelta64(1, 'h')
+            if 0 < duration <= duration_threshold_h:
+                subtraj_indexes_to_delete.append(i_sj - 1)
+                start_obs[i_sj] = start_obs[i_sj - 1]
 
     start_obs = np.delete(start_obs, subtraj_indexes_to_delete)
     end_obs = np.delete(end_obs, subtraj_indexes_to_delete)
@@ -49,12 +62,12 @@ def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
     return start_obs, end_obs
 
 
-close_2_shore = ds.aprox_distance_shoreline < threshold_approximate_distance_km
+close_2_shore = ds.aprox_distance_shoreline.values < threshold_approximate_distance_km
 start_obs, end_obs = get_subtraj_indexes_from_mask(close_2_shore, ds, duration_threshold_h=threshold_duration_hours)
 
 
 #%%
-def get_beaching_flags(ds, start_obs, end_obs, version=1):
+def get_beaching_flags(ds, start_obs, end_obs):
     if len(start_obs) != len(end_obs):
         raise ValueError('"subtraj starts" and "subtraj ends" must have equal lengths!')
 
@@ -62,17 +75,18 @@ def get_beaching_flags(ds, start_obs, end_obs, version=1):
     beaching_obs_list = []
     for i, (i_s, i_e) in enumerate(zip(start_obs, end_obs)):
 
-        ds_subtraj = ds.isel(obs=slice(i_s, i_e))
-        mask_drifter_on_shore = get_obs_drifter_on_shore(ds_subtraj, version=version)
+        obs = np.arange(i_s, i_e)
+        traj = traj_from_obs(ds, obs)
+
+        ds_subtraj = ds.isel(obs=obs, traj=traj)
+        mask_drifter_on_shore = get_obs_drifter_on_shore(ds_subtraj)
         if mask_drifter_on_shore.sum() > 0:
             beaching_flags[i] = True
             beaching_obs_list.append(np.arange(i_s, i_e)[mask_drifter_on_shore])
     return beaching_flags, beaching_obs_list
 
 
-beaching_flags0, beaching_obs_list0 = get_beaching_flags(ds, start_obs, end_obs, version=0)
-beaching_flags1, beaching_obs_list1 = get_beaching_flags(ds, start_obs, end_obs, version=1)
-beaching_flags, beaching_obs_list = get_beaching_flags(ds, start_obs, end_obs, version=2)
+beaching_flags, beaching_obs_list = get_beaching_flags(ds, start_obs, end_obs)
 
 
 # %%

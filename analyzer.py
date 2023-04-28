@@ -88,7 +88,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return distance
 
 
-def get_obs_drifter_on_shore(ds, minimum_time_h=4, version=1):
+def get_obs_drifter_on_shore(ds, minimum_time_h=4):
     """
     Determine beaching events based on two thresholds. The distance travelled between observations and distance between
     beginning and end of a threshold number of observations.
@@ -96,7 +96,6 @@ def get_obs_drifter_on_shore(ds, minimum_time_h=4, version=1):
     :param threshold_distance_start_end_m:  distance threshold between beginning and end of minimum_time_h in meters
     :param threshold_distance_travelled_m:  travelled distance threshold in meters
     :param minimum_time_h:  number of hours that the drifter must be within the threshold distances
-    :param version:  version of the algorithm to use
     :return:  boolean array with True for drifter on shore
     """
 
@@ -104,13 +103,18 @@ def get_obs_drifter_on_shore(ds, minimum_time_h=4, version=1):
     if not isinstance(minimum_time_h, int) or minimum_time_h < 0:
         raise ValueError('minimum_time_h must be an integer greater than 0')
 
+    # check if only a single drifter is given as input otherwise raise error
+    if len(np.unique(ds.ids)) != 1:
+        raise ValueError('Only a single trajectory can be given as input')
+
     beaching_tags = np.zeros(len(ds.obs), dtype=bool)
 
     # check if there are enough observations
     if len(ds.obs) < minimum_time_h + 1:
         return beaching_tags
 
-    if version == 0:
+    # for Argos look at velocities only
+    if not ds.location_type.values[0]:
         velocities = get_absolute_velocity(ds)
 
         count = 0
@@ -129,6 +133,7 @@ def get_obs_drifter_on_shore(ds, minimum_time_h=4, version=1):
             else:
                 count = 0
 
+    # for GPS: check if the preceding observations lay within a threshold radius/distance from the current observation
     else:
         lats = ds.latitude.values
         lons = ds.longitude.values
@@ -144,39 +149,29 @@ def get_obs_drifter_on_shore(ds, minimum_time_h=4, version=1):
         # compute threshold distances in meters
         err_lons = ds.err_lon.values
         err_lats = ds.err_lat.values
-        err_distances_m = haversine_distance(lats, lons, lats + err_lats, lons + err_lons)
+        err_distances_m_0 = haversine_distance(lats, lons, lats + err_lats, lons + err_lons)
 
-        if version == 1:
+        # distances are small so use simple euclidean distance in meters
+        # convert error in lat/lon to error in meters
+        err_lons_m = err_lons * 111000 * np.cos(np.deg2rad(lats))
+        err_lats_m = err_lats * 111000
+        err_distances_m = np.hypot(err_lons_m, err_lats_m)
 
-            cumsum = np.cumsum(np.insert(err_distances_m, 0, 0))
-            threshold_distances_start_end_m = cumsum[minimum_time_h:] - cumsum[:-minimum_time_h]
+        # this method computes for n-minimum_time_h observations the distances between the observation and
+        # minimum_time_h observations before and puts these in a matrix.
 
-            # compute the distances travelled by the drifter between each observation
-            distances_between_points_m = np.hypot(np.diff(x), np.diff(y))
-            distance_between_minimum_time = np.hypot(np.array([x[i] - x[i - minimum_time_h] for i in range(minimum_time_h, len(x))]),
-                                                  np.array([y[i] - y[i - minimum_time_h] for i in range(minimum_time_h, len(y))]))
+        D = np.zeros((minimum_time_h, len(lats) - minimum_time_h))
+        for i in range(len(lats) - minimum_time_h):
+            from_ob = i + minimum_time_h
+            for j in range(minimum_time_h):
+                to_ob = from_ob - j - 1
+                D[j, i] = np.hypot(x[from_ob] - x[to_ob], y[from_ob] - y[to_ob])
 
-            beaching_tags = np.zeros(len(lats), dtype=bool)
-
-            for i, (distance, td) in enumerate(zip(distance_between_minimum_time, threshold_distances_start_end_m)):
-                if distance < (td / minimum_time_h) and distances_between_points_m[i - minimum_time_h:i].sum() < td:
-                    beaching_tags[i - minimum_time_h:i] = True
-        else:
-            # this method computes for n-minimum_time_h observations the distances between the observation and
-            # minimum_time_h observations before and puts these in a matrix.
-
-            D = np.zeros((minimum_time_h, len(lats) - minimum_time_h))
-            for i in range(len(lats) - minimum_time_h):
-                from_ob = i + minimum_time_h
-                for j in range(minimum_time_h):
-                    to_ob = from_ob - j - 1
-                    D[j, i] = np.hypot(x[from_ob] - x[to_ob], y[from_ob] - y[to_ob])
-
-            for i in range(len(lats) - minimum_time_h):
-                # arbitrary factor 2 because 1 std would only include 68% of the data
-                # if np.all(D[:, i] < err_distances_m[i:i + minimum_time_h] * 2):
-                if np.all(D[:, i] < 100):
-                    beaching_tags[i:i + minimum_time_h] = True
+        for i in range(len(lats) - minimum_time_h):
+            # arbitrary factor 2 because 1 std would only include 68% of the data
+            # if np.all(D[:, i] < err_distances_m[i:i + minimum_time_h] * 2):
+            if np.all(D[:, i] < np.clip(err_distances_m[i:i + minimum_time_h], 0, 100)):
+                beaching_tags[i:i + minimum_time_h] = True
 
     return beaching_tags
 

@@ -173,11 +173,19 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
     return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
-def load_random_subset(percentage=1):
+def load_random_subset(percentage=1, gps_only=False):
     ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
-
     n = len(ds.traj)
-    traj = np.random.choice(np.arange(len(ds.traj)), size=int(n * percentage / 100), replace=False)
+
+    if gps_only:
+        traj_gps = np.where(ds.location_type.values)[0]
+        obs_gps = a.obs_from_traj(ds, traj_gps)
+        ds = ds.isel(traj=traj_gps, obs=obs_gps)
+        size = min(int(n * percentage / 100), len(ds.traj))
+    else:
+        size = int(n * percentage / 100)
+
+    traj = np.random.choice(np.arange(len(ds.traj)), size=size, replace=False)
     obs = a.obs_from_traj(ds, traj)
     ds_subset = ds.isel(traj=traj, obs=obs)
     return ds_subset
