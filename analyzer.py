@@ -70,51 +70,113 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
     return shortest_distances
 
 
-def get_mask_drifter_on_shore(distance, velocity, max_distance_m, max_velocity_mps, threshold_count=4):
-    if len(distance) != len(velocity):
-        raise ValueError('distance and velocity array must have the same length!')
+def haversine_distance(lat1, lon1, lat2, lon2):
+    # convert decimal degrees to radians
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
 
-    beaching_tags = np.zeros(len(distance), dtype=bool)
+    # Haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    c = 2 * np.arcsin(np.sqrt(a))
 
-    count = 0
+    # Radius of earth in meters
+    radius_m = 6371 * 1000
 
-    for i, (d, v) in enumerate(zip(distance, velocity)):
-        if d < max_distance_m and v < max_velocity_mps:
-            count += 1
+    # calculate the result
+    distance = radius_m * c
+    return distance
 
-            if count == threshold_count:
-                beaching_tags[i-threshold_count:i] = True
-            elif count > threshold_count:
-                beaching_tags[i] = True
 
+def get_obs_drifter_on_shore(ds, minimum_time_h=4, version=1):
+    """
+    Determine beaching events based on two thresholds. The distance travelled between observations and distance between
+    beginning and end of a threshold number of observations.
+    :param ds:  xarray dataset containing the drifter data
+    :param threshold_distance_start_end_m:  distance threshold between beginning and end of minimum_time_h in meters
+    :param threshold_distance_travelled_m:  travelled distance threshold in meters
+    :param minimum_time_h:  number of hours that the drifter must be within the threshold distances
+    :param version:  version of the algorithm to use
+    :return:  boolean array with True for drifter on shore
+    """
+
+    # check if minimum_time_h is an integer and greater than 0
+    if not isinstance(minimum_time_h, int) or minimum_time_h < 0:
+        raise ValueError('minimum_time_h must be an integer greater than 0')
+
+    beaching_tags = np.zeros(len(ds.obs), dtype=bool)
+
+    # check if there are enough observations
+    if len(ds.obs) < minimum_time_h + 1:
+        return beaching_tags
+
+    if version == 0:
+        velocities = get_absolute_velocity(ds)
+
+        count = 0
+        a = np.hypot(ds.err_vn.values, ds.err_ve.values) * 2
+        b = np.clip(a, 0, 0.02)
+        max_velocity_mps = np.mean(b)
+        for i,  v in enumerate(velocities):
+            if v < max_velocity_mps:
+                count += 1
+
+                if count == minimum_time_h:
+                    beaching_tags[i - minimum_time_h:i] = True
+                elif count > minimum_time_h:
+                    beaching_tags[i] = True
+
+            else:
+                count = 0
+
+    else:
+        lats = ds.latitude.values
+        lons = ds.longitude.values
+
+        df_gdp = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
+                                  geometry=gpd.points_from_xy(lons, lats),
+                                  crs='epsg:4326')
+        df_gdp.to_crs(epsg=3857, inplace=True)
+
+        x = df_gdp.geometry.x.values
+        y = df_gdp.geometry.y.values
+
+        # compute threshold distances in meters
+        err_lons = ds.err_lon.values
+        err_lats = ds.err_lat.values
+        err_distances_m = haversine_distance(lats, lons, lats + err_lats, lons + err_lons)
+
+        if version == 1:
+
+            cumsum = np.cumsum(np.insert(err_distances_m, 0, 0))
+            threshold_distances_start_end_m = cumsum[minimum_time_h:] - cumsum[:-minimum_time_h]
+
+            # compute the distances travelled by the drifter between each observation
+            distances_between_points_m = np.hypot(np.diff(x), np.diff(y))
+            distance_between_minimum_time = np.hypot(np.array([x[i] - x[i - minimum_time_h] for i in range(minimum_time_h, len(x))]),
+                                                  np.array([y[i] - y[i - minimum_time_h] for i in range(minimum_time_h, len(y))]))
+
+            beaching_tags = np.zeros(len(lats), dtype=bool)
+
+            for i, (distance, td) in enumerate(zip(distance_between_minimum_time, threshold_distances_start_end_m)):
+                if distance < (td / minimum_time_h) and distances_between_points_m[i - minimum_time_h:i].sum() < td:
+                    beaching_tags[i - minimum_time_h:i] = True
         else:
-            count = 0
+            # this method computes for n-minimum_time_h observations the distances between the observation and
+            # minimum_time_h observations before and puts these in a matrix.
 
-    return beaching_tags
+            D = np.zeros((minimum_time_h, len(lats) - minimum_time_h))
+            for i in range(len(lats) - minimum_time_h):
+                from_ob = i + minimum_time_h
+                for j in range(minimum_time_h):
+                    to_ob = from_ob - j - 1
+                    D[j, i] = np.hypot(x[from_ob] - x[to_ob], y[from_ob] - y[to_ob])
 
-
-def get_mask_drifter_on_shore_v2(ds, threshold_distance_m, max_distance_travelled_m, threshold_h=4):
-
-    lats = ds.latitude.values
-    lons = ds.longitude.values
-    df_gdp = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
-                              geometry=gpd.points_from_xy(lons, lats),
-                              crs='epsg:4326')
-    df_gdp.to_crs(crs=3853, inplace=True)
-
-    x = df_gdp.geometry.x.values
-    y = df_gdp.geometry.y.values
-
-    # compute the distances travelled by the drifter between each observation
-    distances_between_points_m = np.hypot(np.diff(x), np.diff(y))
-    distance_between_threshold = np.hypot(np.array([x[i] - x[i - threshold_h] for i in range(threshold_h, len(x))]),
-                                          np.array([y[i] - y[i - threshold_h] for i in range(threshold_h, len(y))]))
-
-    beaching_tags = np.zeros(len(lats), dtype=bool)
-
-    for i, distance in enumerate(distance_between_threshold):
-        if distance and distances_between_points_m[i - threshold_h:i].sum() < max_distance_travelled_m:
-            beaching_tags[i - threshold_h:i] = True
+            for i in range(len(lats) - minimum_time_h):
+                # arbitrary factor 2 because 1 std would only include 68% of the data
+                # if np.all(D[:, i] < err_distances_m[i:i + minimum_time_h] * 2):
+                if np.all(D[:, i] < 100):
+                    beaching_tags[i:i + minimum_time_h] = True
 
     return beaching_tags
 
@@ -147,9 +209,9 @@ def tag_drifters_beached(ds, distance_threshold=1000):
             obs = obs_from_traj(ds, traj)
             ds_i = ds.isel(obs=obs, traj=traj)
 
-            beaching_rows = get_mask_drifter_on_shore(ds_i.aprox_distance_shoreline.values[-10:],
-                                                      np.hypot(ds_i.vn.values[-10:], ds_i.ve.values[-10:]),
-                                                      distance_threshold, 0.1)
+            beaching_rows = get_obs_drifter_on_shore(ds_i.aprox_distance_shoreline.values[-10:],
+                                                     np.hypot(ds_i.vn.values[-10:], ds_i.ve.values[-10:]),
+                                                     distance_threshold, 0.1)
 
             if beaching_rows[-1]:
                 print(f'Found beaching of drifter {ds_i.ID.values}')

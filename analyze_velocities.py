@@ -24,3 +24,10 @@ mean_err_vn_argos = ds_argos.err_vn.values[np.where(ds_argos.err_vn > 0)[0]].mea
 std_err_vn_argos = ds_argos.err_vn.values[np.where(ds_argos.err_vn > 0)[0]].std()
 print(f'Mean error in northward velocity of GPS = {mean_err_vn_gps:.4f}±{std_err_vn_gps:.4f} m/s.')
 print(f'Mean error in northward velocity of Argos = {mean_err_vn_argos:.4f}±{std_err_vn_argos:.4f} m/s.')
+
+
+# compute and print the maximum velocity
+max_v_gps = v_gps.max()
+max_v_argos = v_argos.max()
+print(f'Maximum velocity of GPS = {max_v_gps:.4f} m/s.')
+print(f'Maximum velocity of Argos = {max_v_argos:.4f} m/s.')

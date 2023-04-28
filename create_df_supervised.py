@@ -53,8 +53,8 @@ close_2_shore = ds.aprox_distance_shoreline < threshold_approximate_distance_km
 start_obs, end_obs = get_subtraj_indexes_from_mask(close_2_shore, ds, duration_threshold_h=threshold_duration_hours)
 
 
-# %%
-def get_beaching_flags(ds, start_obs, end_obs):
+#%%
+def get_beaching_flags(ds, start_obs, end_obs, version=1):
     if len(start_obs) != len(end_obs):
         raise ValueError('"subtraj starts" and "subtraj ends" must have equal lengths!')
 
@@ -62,17 +62,17 @@ def get_beaching_flags(ds, start_obs, end_obs):
     beaching_obs_list = []
     for i, (i_s, i_e) in enumerate(zip(start_obs, end_obs)):
 
-        # hardcode distance to be neglected by setting distances to zero and threshold to >0 (e.g. 1)
-        distance = np.zeros(i_e - i_s, dtype=int)
-        velocity = get_absolute_velocity(ds.isel(obs=slice(i_s, i_e)))
-        mask_drifter_on_shore = get_mask_drifter_on_shore(distance, velocity, max_distance_m=1, max_velocity_mps=0.01)
+        ds_subtraj = ds.isel(obs=slice(i_s, i_e))
+        mask_drifter_on_shore = get_obs_drifter_on_shore(ds_subtraj, version=version)
         if mask_drifter_on_shore.sum() > 0:
             beaching_flags[i] = True
             beaching_obs_list.append(np.arange(i_s, i_e)[mask_drifter_on_shore])
     return beaching_flags, beaching_obs_list
 
 
-beaching_flags, beaching_obs_list = get_beaching_flags(ds, start_obs, end_obs)
+beaching_flags0, beaching_obs_list0 = get_beaching_flags(ds, start_obs, end_obs, version=0)
+beaching_flags1, beaching_obs_list1 = get_beaching_flags(ds, start_obs, end_obs, version=1)
+beaching_flags, beaching_obs_list = get_beaching_flags(ds, start_obs, end_obs, version=2)
 
 
 # %%
