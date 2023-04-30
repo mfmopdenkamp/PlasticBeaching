@@ -10,14 +10,13 @@ plot_things = False
 percentage = 5
 random_set = 2
 gps_only = True
-ds = pickm.pickle_wrapper(f'gdp_random_subset_{percentage}_{random_set}{("gps_only" if gps_only else "")}',
+undrogued_only = True
+ds = pickm.pickle_wrapper(f'gdp_random_subset_{percentage}_{random_set}'
+                          f'{("_gps_only" if gps_only else "")}'
+                          f'{("_undrogued_only" if undrogued_only else "")}',
                           load_data.load_random_subset, percentage, gps_only)
 shoreline_resolution = 'h'
 # %%
-obs = ds.obs[np.invert(drogue_presence(ds))]
-traj = traj_from_obs(ds, obs)
-ds = ds.isel(obs=obs, traj=traj)
-
 threshold_duration_hours = 12
 threshold_approximate_distance_km = 12
 threshold_split_length_h = 24
@@ -38,7 +37,7 @@ def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
     # split subtrajs that dont belong to single drifter
     ids = ds.ids.values
 
-    obs_where_to_split = obs[1:][np.array(np.diff(ids) & mask[:-1] & mask[1:], dtype=bool)]
+    obs_where_to_split = obs[1:][np.array(np.diff(ids).astype(bool) & mask[:-1] & mask[1:], dtype=bool)]
     start_obs = np.append(start_obs, obs_where_to_split)
     end_obs = np.append(end_obs, obs_where_to_split)
     start_obs = np.sort(start_obs)

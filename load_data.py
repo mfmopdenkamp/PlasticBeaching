@@ -173,7 +173,7 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
     return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
-def load_random_subset(percentage=1, gps_only=False):
+def load_random_subset(percentage=1, gps_only=False, undrogued_only=False):
     ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
     n = len(ds.traj)
 
@@ -188,6 +188,12 @@ def load_random_subset(percentage=1, gps_only=False):
     traj = np.random.choice(np.arange(len(ds.traj)), size=size, replace=False)
     obs = a.obs_from_traj(ds, traj)
     ds_subset = ds.isel(traj=traj, obs=obs)
+
+    if undrogued_only:
+        obs = ds_subset.obs[np.invert(a.drogue_presence(ds_subset))]
+        traj = a.traj_from_obs(ds, obs)
+        ds_subset = ds_subset.isel(obs=obs, traj=traj)
+
     return ds_subset
 
 
