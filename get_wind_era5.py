@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 
-name = 'subtraj_random_subset_5_2_gps_only_undrogued_only'
+name = 'subtrajs_random_subset_5_2_gps_only_undrogued_only'
 
 df = pd.read_csv(f'data/{name}.csv',
                  parse_dates=['time_start', 'time_end'], index_col='ID',
