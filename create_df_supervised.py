@@ -11,15 +11,17 @@ percentage = 5
 random_set = 2
 gps_only = True
 undrogued_only = True
-ds = pickm.pickle_wrapper(f'gdp_random_subset_{percentage}_{random_set}'
-                          f'{("_gps_only" if gps_only else "")}'
-                          f'{("_undrogued_only" if undrogued_only else "")}',
-                          load_data.load_random_subset, percentage, gps_only)
+
+name = f'random_subset_{percentage}_{random_set}{("_gps_only" if gps_only else "")}' \
+       f'{("_undrogued_only" if undrogued_only else "")}'
+
+ds = pickm.pickle_wrapper('ds_gdp_' + name, load_data.load_random_subset, percentage, gps_only)
 shoreline_resolution = 'h'
 # %%
 threshold_duration_hours = 12
 threshold_approximate_distance_km = 12
 threshold_split_length_h = 24
+
 
 # %%
 def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
@@ -266,15 +268,24 @@ df = pd.DataFrame(data={'time_start': ds.time[start_obs],
                         'de': distances_east,
                         'dn': distances_north,
                         'beaching_flag': beaching_flags})
+# Make sure the time is in datetime format
 df['time_start'] = pd.to_datetime(df['time_start'])
+df['time_end'] = pd.to_datetime(df['time_end'])
+
+# sort the subtraj dataframe by time
 df.sort_values('time_start', inplace=True)
-df.filter(['time_start', 'time_end', 'latitude_start', 'longitude_start'], axis=1).to_csv(f'data/subtraj_locations_{percentage}_{random_set}.csv', index_label='ID')
-df.to_csv(f'data/subtrajs_{percentage}_{random_set}.csv', index_label='ID')
+
+#%% Save the dataframe to csv
+# Save all the subtrajectories
+df.to_csv(f'data/subtrajs_{name}.csv', index_label='ID')
+# Save only the location for interpolation
+# df.filter(['time_start', 'time_end', 'latitude_start', 'longitude_start'], axis=1).to_csv(
+#     f'data/subtraj_locations_{name}.csv', index_label='ID')
+
 
 # %% Plotting
 if plot_things:
     import cartopy.crs as ccrs
-
 
     def plot_beaching_trajectories(ds, ax=None, s=15, ds_beaching_obs=None, df_shore=pd.DataFrame()):
         """given a dataset, plot the trajectories on a map"""

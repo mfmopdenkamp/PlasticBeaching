@@ -3,7 +3,10 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 
-df = pd.read_csv('data/event_locations.csv', parse_dates=['time_start', 'time_end'], index_col='ID',
+name = 'subtraj_random_subset_5_2_gps_only_undrogued_only'
+
+df = pd.read_csv(f'data/{name}.csv',
+                 parse_dates=['time_start', 'time_end'], index_col='ID',
                  infer_datetime_format=True)
 
 prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
@@ -22,9 +25,9 @@ u_std = np.zeros(n)
 v_std = np.zeros(n)
 
 
-for i_event, event in enumerate(df.itertuples()):
-    print(f'Do something from start time : {event.time_start} until : {event.time_end}')
-    times = pd.date_range(event.time_start, event.time_end, freq='H')
+for i_event, subtraj in enumerate(df.itertuples()):
+    print(f'Do something from start time : {subtraj.time_start} until : {subtraj.time_end}')
+    times = pd.date_range(subtraj.time_start, subtraj.time_end, freq='H')
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
     file_paths = [prefix_era5_data+yymm+'.nc' for yymm in YYYYMM_keys]
     if len(file_paths) > 1:
@@ -33,8 +36,8 @@ for i_event, event in enumerate(df.itertuples()):
         ds = xr.open_dataset(file_paths[0])
 
     # interpolate lons and lats
-    lat = ds.latitude[np.argmin(abs(ds.latitude.values - event.latitude_start))]
-    lon = ds.longitude[np.argmin(abs(ds.longitude.values - event.longitude_start))]
+    lat = ds.latitude[np.argmin(abs(ds.latitude.values - subtraj.latitude_start))]
+    lon = ds.longitude[np.argmin(abs(ds.longitude.values - subtraj.longitude_start))]
     ds = ds.sel(time=times, latitude=lat, longitude=lon)
     abs_speed = np.hypot(ds.u10, ds.v10)
     V_mean[i_event] = np.mean(abs_speed)
@@ -66,4 +69,4 @@ df = df.assign(V_mean=V_mean,
                v_std=v_std
                )
 
-df.to_csv('data/events_wind.csv')
+df.to_csv(f'data/{name}_wind.csv')
