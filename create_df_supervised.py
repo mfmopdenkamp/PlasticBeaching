@@ -1,3 +1,4 @@
+import numpy as np
 from sklearn.linear_model import LinearRegression
 import picklemanager as pickm
 import pandas as pd
@@ -66,6 +67,7 @@ def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
 close_2_shore = ds.aprox_distance_shoreline.values < threshold_approximate_distance_km
 start_obs, end_obs = get_subtraj_indexes_from_mask(close_2_shore, ds, duration_threshold_h=threshold_duration_hours)
 
+print('Number of subtrajs before splitting:', len(start_obs))
 
 #%%
 def get_beaching_flags(ds, start_obs, end_obs):
@@ -89,6 +91,8 @@ def get_beaching_flags(ds, start_obs, end_obs):
 
 beaching_flags, beaching_obs_list = get_beaching_flags(ds, start_obs, end_obs)
 
+print('Number of beaching events:', beaching_flags.sum())
+
 
 # %%
 def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_length_h=24):
@@ -97,76 +101,80 @@ def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_
     split_obs_to_insert = np.array([], dtype=int)
     beaching_flags_to_insert = np.array([], dtype=bool)
     where_to_insert_new_subtraj = np.array([], dtype=int)
-
     where_to_change_beaching_flags = np.array([], dtype=int)
-
     subtraj_lengths = end_obs - start_obs
 
     i_beaching_event = 0
+
     for i_subtraj, (start_ob, end_ob, subtraj_length, beaching_flag) in enumerate(zip(start_obs, end_obs,
                                                                                       subtraj_lengths, beaching_flags)):
 
         # determine split points of subtrajs based on their length
         if subtraj_length >= split_length_h * 2:
+            subtraj_split_obs = np.arange(split_length_h, subtraj_length - split_length_h + 1, split_length_h) \
+                                + start_ob  # start counting from start subtraj instead of zero
 
-            # if beaching took place, determine consecutive zeros which might split
-            new_beaching_flags_from_subtraj = np.array([], dtype=bool)
+            # if beaching took place, check new beaching flags
             if beaching_flag:
-                no_beach_count = 0
-                subtraj_split_obs = np.array([], dtype=int)
 
-                beach_encountered = False
+                beaching_obs = beaching_obs_list[i_beaching_event]
 
-                for ob in range(start_ob, end_ob):
-
-                    if ob not in beaching_obs_list[i_beaching_event]:
-                        no_beach_count += 1
-
-                        if no_beach_count >= split_length_h:
-                            # add split subtraj
-                            subtraj_split_obs = np.append(subtraj_split_obs, ob - split_length_h + 1)
-                            new_beaching_flags_from_subtraj = np.append(new_beaching_flags_from_subtraj,
-                                                                        beach_encountered)
-
-                            beach_encountered = False
-                            no_beach_count -= split_length_h
-
-                    else:
-                        no_beach_count = 0
-                        beach_encountered = True
-
-                i_beaching_event += 1
-
-                # check whether beaching flag should be changed to zero
-                if len(new_beaching_flags_from_subtraj) > 0 and not beach_encountered:
+                # check if original beaching flag must be changed to False
+                if not np.any(np.isin(np.arange(start_ob, subtraj_split_obs[0]), beaching_obs)):
                     where_to_change_beaching_flags = np.append(where_to_change_beaching_flags, i_subtraj)
 
+                new_beaching_flags_from_subtraj = np.array(np.zeros(len(subtraj_split_obs)), dtype=bool)
+                for j in range(len(subtraj_split_obs) - 1):
+                    obs_in_new_sub_traj = np.arange(subtraj_split_obs[j], subtraj_split_obs[j+1])
+                    if np.any(np.isin(obs_in_new_sub_traj, beaching_obs)):
+                        new_beaching_flags_from_subtraj[j] = True
+
+                # check if the last part of the subtraj is beaching
+                if np.any(np.isin(np.arange(subtraj_split_obs[-1], end_ob), beaching_obs)):
+                    new_beaching_flags_from_subtraj[-1] = True
+
+                if sum(new_beaching_flags_from_subtraj) < 1:
+                    raise ValueError('No beaching flag was set for subtraj', i_subtraj)
+
+            # if no beaching took place, set all new beaching flags to False
             else:
-                subtraj_split_obs = np.arange(split_length_h, subtraj_length - split_length_h + 1, split_length_h) \
-                                    + start_ob  # start counting from start subtraj instead of zero
-                new_beaching_flags_from_subtraj = np.append(new_beaching_flags_from_subtraj,
-                                                            np.zeros(len(subtraj_split_obs), dtype=bool))
+                new_beaching_flags_from_subtraj = np.zeros(len(subtraj_split_obs), dtype=bool)
 
             # append new split points for this coordinate
             split_obs_to_insert = np.append(split_obs_to_insert, subtraj_split_obs)
             beaching_flags_to_insert = np.append(beaching_flags_to_insert, new_beaching_flags_from_subtraj)
             where_to_insert_new_subtraj = np.append(where_to_insert_new_subtraj,
-                                                    np.ones(len(subtraj_split_obs), dtype=int)
-                                                    * i_subtraj)
+                                                    np.ones(len(subtraj_split_obs), dtype=int) * i_subtraj)
 
+        if beaching_flag:
+            i_beaching_event += 1
     # change beaching flags
     beaching_flags[where_to_change_beaching_flags] = False
 
     # insert new subtrajs
     start_obs = np.insert(start_obs, where_to_insert_new_subtraj + 1, split_obs_to_insert)
     end_obs = np.insert(end_obs, where_to_insert_new_subtraj, split_obs_to_insert)
-    beaching_flags = np.insert(beaching_flags, where_to_insert_new_subtraj, beaching_flags_to_insert)
+    beaching_flags = np.insert(beaching_flags, where_to_insert_new_subtraj + 1, beaching_flags_to_insert)
 
     return start_obs, end_obs, beaching_flags
 
 
 start_obs, end_obs, beaching_flags = split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list,
                                                     split_length_h=threshold_split_length_h)
+
+print('Number of subtrajs after splitting: ', len(start_obs))
+print('Number of beaching events:', beaching_flags.sum())
+
+#%% Delete subtrajs that start with beaching observations
+
+all_beaching_obs = np.concatenate(beaching_obs_list)
+mask_start_beaching = np.in1d(start_obs, all_beaching_obs)
+start_obs = start_obs[~mask_start_beaching]
+end_obs = end_obs[~mask_start_beaching]
+beaching_flags = beaching_flags[~mask_start_beaching]
+
+print('Number of deleted subtrajs because they start with beaching: ', mask_start_beaching.sum())
+print('Number of beaching events:', beaching_flags.sum())
 
 
 # %%
@@ -253,6 +261,9 @@ shortest_distances = np.delete(shortest_distances, no_near_shore_found_indexes)
 distances_east = np.delete(distances_east, no_near_shore_found_indexes)
 distances_north = np.delete(distances_north, no_near_shore_found_indexes)
 beaching_flags = np.delete(beaching_flags, no_near_shore_found_indexes)
+
+print('Number of deleted subtrajs because no shore was found: ', len(no_near_shore_found_indexes))
+print('Remaining number of beaching events:', beaching_flags.sum())
 
 # %% Create supervised dataframe
 n = len(start_obs)
