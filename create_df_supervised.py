@@ -6,6 +6,8 @@ from analyzer import *
 import load_data
 import plotter
 
+
+# %% Settings
 plot_things = False
 
 percentage = 5
@@ -18,13 +20,13 @@ name = f'random_subset_{percentage}_{random_set}{("_gps_only" if gps_only else "
 
 ds = pickm.pickle_wrapper('ds_gdp_' + name, load_data.load_random_subset, percentage, gps_only)
 shoreline_resolution = 'h'
-# %%
+
 threshold_duration_hours = 12
 threshold_approximate_distance_km = 12
 threshold_split_length_h = 24
 
 
-# %%
+# %% Get subtraj indexes from close2shore mask
 def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
     # first determine start and end indexes solely based on the mask
     mask = mask.astype(int)
@@ -69,7 +71,7 @@ start_obs, end_obs = get_subtraj_indexes_from_mask(close_2_shore, ds, duration_t
 
 print('Number of subtrajs before splitting:', len(start_obs))
 
-#%%
+# %% Get beaching flags and beaching observations
 def get_beaching_flags(ds, start_obs, end_obs):
     if len(start_obs) != len(end_obs):
         raise ValueError('"subtraj starts" and "subtraj ends" must have equal lengths!')
@@ -94,7 +96,7 @@ beaching_flags, beaching_obs_list = get_beaching_flags(ds, start_obs, end_obs)
 print('Number of beaching events:', beaching_flags.sum())
 
 
-# %%
+# %% Split subtrajectories
 def split_subtrajs(start_obs, end_obs, beaching_flags, beaching_obs_list, split_length_h=24):
     # Split subtrajs based on time. Use index for this, since they correspond to exactly 1 hour.
     # New subtrajs may not be smaller than the length threshold!
@@ -165,7 +167,7 @@ start_obs, end_obs, beaching_flags = split_subtrajs(start_obs, end_obs, beaching
 print('Number of subtrajs after splitting: ', len(start_obs))
 print('Number of beaching events:', beaching_flags.sum())
 
-#%% Delete subtrajs that start with beaching observations
+# %% Delete subtrajs that start with beaching observations
 
 all_beaching_obs = np.concatenate(beaching_obs_list)
 mask_start_beaching = np.in1d(start_obs, all_beaching_obs)
@@ -177,7 +179,7 @@ print('Number of deleted subtrajs because they start with beaching: ', mask_star
 print('Number of beaching events:', beaching_flags.sum())
 
 
-# %%
+# %% Get shore parameters
 def get_shore_parameters(ds):
     df_shore = load_data.get_shoreline(shoreline_resolution, points_only=True)
 
@@ -286,12 +288,9 @@ df['time_end'] = pd.to_datetime(df['time_end'])
 # sort the subtraj dataframe by time
 df.sort_values('time_start', inplace=True)
 
-#%% Save the dataframe to csv
-# Save all the subtrajectories
+# %% Save the dataframe to csv
+
 df.to_csv(f'data/subtrajs_{name}.csv', index_label='ID')
-# Save only the location for interpolation
-# df.filter(['time_start', 'time_end', 'latitude_start', 'longitude_start'], axis=1).to_csv(
-#     f'data/subtraj_locations_{name}.csv', index_label='ID')
 
 
 # %% Plotting

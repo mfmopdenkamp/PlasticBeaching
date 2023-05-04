@@ -3,7 +3,7 @@ import numpy as np
 import xarray as xr
 import tomli
 
-with open('config.toml', 'r') as f:
+with open('config.toml', 'rb') as f:
     config = tomli.load(f)
 
 name = config['name']
