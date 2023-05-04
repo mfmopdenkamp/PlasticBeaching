@@ -197,16 +197,6 @@ def load_random_subset(percentage=1, gps_only=False, undrogued_only=False):
     return ds_subset
 
 
-def get_subtrajs(file_name):
-    df_prep = pd.read_csv('data/' + file_name, parse_dates=['time_start', 'time_end']).drop(
-        columns='ID')
-    df_wind = pd.read_csv('data/events_wind.csv', parse_dates=['time_start', 'time_end']).drop(
-        columns=['ID', 'Unnamed: 0'])
-    df = pd.merge(df_prep, df_wind)
-
-    return df
-
-
 if __name__ == '__main__':
     # print('Loading six-hourly drifter data into Pandas DataFrame..', end='')
     # start = time.time()

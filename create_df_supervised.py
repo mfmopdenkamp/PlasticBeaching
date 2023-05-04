@@ -2,17 +2,16 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import picklemanager as pickm
 import pandas as pd
-from analyzer import *
+import analyzer as a
+import geopandas as gpd
 import load_data
 import plotter
-
-
 # %% Settings
 plot_things = False
 
 percentage = 5
-random_set = 2
-gps_only = False
+random_set = 3
+gps_only = True
 undrogued_only = True
 
 name = f'random_subset_{percentage}_{random_set}{("_gps_only" if gps_only else "")}' \
@@ -81,10 +80,10 @@ def get_beaching_flags(ds, start_obs, end_obs):
     for i, (i_s, i_e) in enumerate(zip(start_obs, end_obs)):
 
         obs = np.arange(i_s, i_e)
-        traj = traj_from_obs(ds, obs)
+        traj = a.traj_from_obs(ds, obs)
 
         ds_subtraj = ds.isel(obs=obs, traj=traj)
-        mask_drifter_on_shore = get_obs_drifter_on_shore(ds_subtraj)
+        mask_drifter_on_shore = a.get_obs_drifter_on_shore(ds_subtraj)
         if mask_drifter_on_shore.sum() > 0:
             beaching_flags[i] = True
             beaching_obs_list.append(np.arange(i_s, i_e)[mask_drifter_on_shore])
@@ -183,14 +182,7 @@ print('Number of beaching events:', beaching_flags.sum())
 def get_shore_parameters(ds):
     df_shore = load_data.get_shoreline(shoreline_resolution, points_only=True)
 
-    lats = ds.latitude.values
-    lons = ds.longitude.values
-    df_gdp = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
-                              geometry=gpd.points_from_xy(lons, lats),
-                              crs='epsg:4326')
-
-    # Make sure the CRS is identical.
-    df_gdp.to_crs(df_shore.crs, inplace=True)
+    df_gdp = a.ds2geopandas_dataframe(ds.latitude.values, ds.longitude.values, df_shore)
 
     n = len(ds.obs)
     dtype = np.float32
@@ -202,6 +194,8 @@ def get_shore_parameters(ds):
     no_near_shore_found_indexes = []
 
     for i_coord, coord in enumerate(df_gdp.itertuples()):
+
+        # get shore points in a box around the coordinate
         min_lon = coord.longitude - 0.15
         if min_lon < -180:
             min_lon += 360
@@ -214,15 +208,15 @@ def get_shore_parameters(ds):
         df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
                                 (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]
 
+        # determine shortest distance between the subtrajectory and index belonging to this point
         if not df_shore_box.empty:
 
-            # determine shortest distance between the subtrajectory and index belonging to this point
             distances_shore_box = np.zeros(len(df_shore_box), dtype=dtype)
             for i_s, shore_point in enumerate(df_shore_box.geometry):
                 distance = coord.geometry.distance(shore_point)
                 distances_shore_box[i_s] = distance
 
-            shortest_distances[i_coord], i_nearest_shore_point = distances_shore_box.min(), distances_shore_box.argmin()
+            shortest_distances[i_coord], i_nearest_shore_point = np.min(distances_shore_box), np.argmin(distances_shore_box)
 
             index_point = df_shore_box.index[i_nearest_shore_point]
             # determine direction to this point

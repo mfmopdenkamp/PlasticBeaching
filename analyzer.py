@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import geopandas as gpd
+import xarray as xr
+import pandas as pd
 from tqdm import tqdm
 import time
 from scipy.interpolate import griddata
@@ -24,6 +26,15 @@ def traj_from_obs(ds, obs):
 
 def get_absolute_velocity(ds):
     return np.hypot(ds.vn.values, ds.ve.values)
+
+
+def ds2geopandas_dataframe(lats, lons, df_shore):
+
+    gdf = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
+                           geometry=gpd.points_from_xy(lons, lats),
+                           crs='epsg:4326')
+    gdf.to_crs(df_shore.crs, inplace=True)
+    return gdf
 
 
 def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):

@@ -10,12 +10,13 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import scipy.stats as stats
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
+import config
 
-df = load_data.get_subtrajs(file_name='events_prep_non_splitted_drogued.csv')
+df = pd.read_csv('data/' + config.filename_wind_plus, parse_dates=['time_start', 'time_end'])
 
 cor = df.corr(numeric_only=True)
 
-y_column = 'beaching_flags'
+y_column = 'beaching_flag'
 
 diki = pd.DataFrame({'pd.corr' : cor[y_column].sort_values(ascending=False)[1:]})
 
