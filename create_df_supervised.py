@@ -10,7 +10,7 @@ plot_things = False
 
 percentage = 5
 random_set = 2
-gps_only = True
+gps_only = False
 undrogued_only = True
 
 name = f'random_subset_{percentage}_{random_set}{("_gps_only" if gps_only else "")}' \
