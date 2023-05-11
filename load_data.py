@@ -173,28 +173,32 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
     return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
-def load_random_subset(percentage=1, gps_only=False, undrogued_only=False):
+def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, threshold_aprox_distance_km=None):
     ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
-    n = len(ds.traj)
+
+    if traj_percentage < 100:
+        n = len(ds.traj)
+        size = int(n * traj_percentage / 100)
+        traj_random = np.random.choice(np.arange(len(ds.traj)), size=size, replace=False)
+        obs_random = a.obs_from_traj(ds, traj_random)
+        ds = ds.isel(traj=traj_random, obs=obs_random)
 
     if gps_only:
         traj_gps = np.where(ds.location_type.values)[0]
         obs_gps = a.obs_from_traj(ds, traj_gps)
         ds = ds.isel(traj=traj_gps, obs=obs_gps)
-        size = min(int(n * percentage / 100), len(ds.traj))
-    else:
-        size = int(n * percentage / 100)
-
-    traj = np.random.choice(np.arange(len(ds.traj)), size=size, replace=False)
-    obs = a.obs_from_traj(ds, traj)
-    ds_subset = ds.isel(traj=traj, obs=obs)
 
     if undrogued_only:
-        obs = ds_subset.obs[np.invert(a.drogue_presence(ds_subset))]
-        traj = a.traj_from_obs(ds, obs)
-        ds_subset = ds_subset.isel(obs=obs, traj=traj)
+        obs_undrogued = ds.obs[~a.get_drogue_presence(ds)]
+        traj_undrogued = a.traj_from_obs(ds, obs_undrogued)
+        ds = ds.isel(obs=obs_undrogued, traj=traj_undrogued)
 
-    return ds_subset
+    if threshold_aprox_distance_km is not None:
+        obs_close2shore = ds.obs[ds.aprox_distance_shoreline.values < threshold_aprox_distance_km]
+        traj_close2shore = a.traj_from_obs(ds, obs_close2shore)
+        ds = ds.isel(traj=traj_close2shore, obs=obs_close2shore)
+
+    return ds
 
 
 if __name__ == '__main__':

@@ -250,32 +250,18 @@ def probability_distance_sophie(ds, verbose=True):
         plt.show()
 
 
-def drogue_presence(ds):
-
-    drogue_presence = np.ones(len(ds.obs), dtype=bool)
+def get_drogue_presence(ds):
+    obs = ds.obs.values
     drogue_lost_dates = ds.drogue_lost_date.values
 
     ids = ds.ids.values
     IDs = ds.ID.values
+    drogue_presence = np.ones(len(obs), dtype=bool)
     for (drogue_lost_date, ID) in zip(drogue_lost_dates, IDs):
         # if drogue lost date is not known, assume it is always present
         if not np.isnat(drogue_lost_date):
-            obs = np.where(ids == ID)[0]
-            times = ds.time.values[obs]
-            drogue_presence[obs] = np.where(times > drogue_lost_date, False, True)
+            obs_id = obs[ids == ID]
+            times = ds.time.values[obs_id]
+            drogue_presence[obs_id] = np.where(times > drogue_lost_date, False, True)
 
     return drogue_presence
-
-
-if __name__ == '__main__':
-    import load_data
-    import plotter
-    ds = load_data.get_ds_drifters('gdp_random_subset_1')
-
-    last_coords = find_index_last_obs_traj(ds)
-
-    drogue_presence = drogue_presence(ds)
-    obs = np.where(ds.latitude > 0)[0]
-    traj = traj_from_obs(ds, obs)
-    plotter.plot_death_type_bar(ds)
-    plotter.plot_trajectories_death_type(ds.isel(traj=traj, obs=obs))

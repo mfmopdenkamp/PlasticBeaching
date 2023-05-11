@@ -59,7 +59,7 @@ undrogued_only = True
 ds = pickm.pickle_wrapper(f'gdp_random_subset_{percentage}_{random_set}'
                           f'{("_gps_only" if gps_only else "")}'
                           f'{("_undrogued_only" if undrogued_only else "")}',
-                          load_data.load_random_subset, percentage, gps_only)
+                          load_data.load_subset, percentage, gps_only)
 
 
 def get_subtraj_indexes_from_mask(mask, ds, duration_threshold_h=12):
