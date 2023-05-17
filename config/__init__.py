@@ -3,7 +3,6 @@ import tomli
 with open('config/config.toml', 'rb') as f:
     config = tomli.load(f)
 
-filename = config['filename']
-filename_wind = config['filename_wind']
-filename_wind_plus = config['filename_wind_plus']
-shoreline_resolution = config['shoreline_resolution']
+csv_wind = config['csv_wind']
+csv_wind2 = config['csv_wind2']
+csv_wind2_tides = config['csv_wind2_tides']
