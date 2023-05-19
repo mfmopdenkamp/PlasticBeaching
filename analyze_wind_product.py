@@ -29,14 +29,7 @@ def get_points_in_wind_direction(df_gdp, df_shore, alpha, side_length):
                                                   df['longitude_start'], df['latitude_start'])):
 
         # get shore points in a box around the coordinate
-        min_lon = lon - 0.15
-        if min_lon < -180:
-            min_lon += 360
-        max_lon = lon + 0.15
-        if max_lon > 180:
-            max_lon -= 360
-        min_lat = lat - 0.15
-        max_lat = lat + 0.15
+        min_lon, max_lon, min_lat, max_lat = a.get_lonlatbox(lon, lat, side_length*2)
 
         df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
                                 (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]

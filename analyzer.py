@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import geopandas as gpd
+import math
 import xarray as xr
 import pandas as pd
 from tqdm import tqdm
@@ -97,6 +98,23 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     # calculate the result
     distance = radius_m * c
     return distance
+
+
+def get_lonlatbox(lon, lat, side_length):
+    """side_length in meters"""
+    lon_length = side_length / (111320 * math.cos(math.radians(lat)))  # 1 degree longitude is 111320m * cos(latitude)
+    min_lon = lon - lon_length
+    if min_lon < -180:
+        min_lon += 360
+    max_lon = lon + lon_length
+    if max_lon > 180:
+        max_lon -= 360
+
+    lat_length = side_length / 111320  # 1 degree latitude is 111.32 km
+    min_lat = lat - lat_length
+    max_lat = lat + lat_length
+
+    return min_lon, max_lon, min_lat, max_lat
 
 
 def get_obs_drifter_on_shore(ds, minimum_time_h=4):

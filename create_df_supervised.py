@@ -116,14 +116,8 @@ def get_shore_parameters(ds):
     for i_coord, coord in enumerate(df_gdp.itertuples()):
 
         # get shore points in a box around the coordinate
-        min_lon = coord.longitude - 0.15
-        if min_lon < -180:
-            min_lon += 360
-        max_lon = coord.longitude + 0.15
-        if max_lon > 180:
-            max_lon -= 360
-        min_lat = coord.latitude - 0.15
-        max_lat = coord.latitude + 0.15
+        min_lon, max_lon, min_lat, max_lat = a.get_lonlatbox(coord.longitude, coord.latitude,
+                                                             threshold_aprox_distance_km*1000 + 4000)
 
         df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
                                 (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]
