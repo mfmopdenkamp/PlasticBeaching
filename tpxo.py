@@ -26,6 +26,7 @@ else:
 
             new_column[i] = ds.hRe.values[i_lon, i_lat]
 
+
         df_segments[f'{tidal_contituent}_tidal_elevation_mm'] = new_column
 
         ds.close()
@@ -34,43 +35,51 @@ else:
 
 
 ds_m2 = xr.load_dataset('data/h_m2_tpxo9_atlas_30.nc')
-# convert lon_z and lat_z variables to coordinates
-ds_m2 = ds_m2.assign_coords(lat=ds_m2.lat_z, lon=ds_m2.lon_z)
-
-# Select the area around a segment start
-min_lon, max_lon, min_lat, max_lat = a.get_lonlatbox(df_segments['longitude_start'][0], df_segments['latitude_start'][0], 500000)
-nx_min = np.argmin(abs(ds_m2.lon_z.values - min_lon))
-nx_max = np.argmin(abs(ds_m2.lon_z.values - max_lon))
-ny_min = np.argmin(abs(ds_m2.lat_z.values - min_lat))
-ny_max = np.argmin(abs(ds_m2.lat_z.values - max_lat))
-ds_m2_sel = ds_m2.isel(nx=slice(nx_min, nx_max), ny=slice(ny_min, ny_max))
 
 
-# Create the figure and axis with a specific projection
-plt.ioff()
+plt.ion()
 matplotlib.use('TkAgg')
-fig = plt.figure()
-ax = fig.add_subplot(projection=ccrs.PlateCarree())
-# Add land and ocean background
-ax.add_feature(cartopy.feature.LAND, facecolor='lightgray')
-ax.add_feature(cartopy.feature.OCEAN, facecolor='white')
+def plot_m2_tidal_elevation(lon, lat, annotation):
+    # Select the area around a segment start
+    min_lon, max_lon, min_lat, max_lat = a.get_lonlatbox(lon, lat, 100000)
+    nx_min = np.argmin(abs(ds_m2.lon_z.values - min_lon))
+    nx_max = np.argmin(abs(ds_m2.lon_z.values - max_lon))
+    ny_min = np.argmin(abs(ds_m2.lat_z.values - min_lat))
+    ny_max = np.argmin(abs(ds_m2.lat_z.values - max_lat))
+    ds_m2_sel = ds_m2.isel(nx=slice(nx_min, nx_max), ny=slice(ny_min, ny_max))
 
-# Plot the data as a colormap using imshow
+    # Create the figure and axis with a specific projection
 
-im = ax.imshow(ds_m2_sel.hRe.values.T, extent=[ds_m2_sel.lon_z.min(), ds_m2_sel.lon_z.max(), ds_m2_sel.lat_z.min(), ds_m2_sel.lat_z.max()],
-               origin='lower', cmap='jet')
+    fig = plt.figure()
+    ax = fig.add_subplot(projection=ccrs.PlateCarree())
+    # Add land and ocean background
+    ax.add_feature(cartopy.feature.LAND, facecolor='lightgray')
+    ax.add_feature(cartopy.feature.OCEAN, facecolor='white')
 
-# Add a colorbar
-cbar = plt.colorbar(im, ax=ax, orientation='vertical', shrink=0.7)
-cbar.set_label('Tidal elevation (m)')
+    # Plot the data as a colormap using imshow
+    im = ax.imshow(ds_m2_sel.hRe.values.T, extent=[ds_m2_sel.lon_z.min(), ds_m2_sel.lon_z.max(), ds_m2_sel.lat_z.min(), ds_m2_sel.lat_z.max()],
+                   origin='lower', cmap='jet')
 
-# Customize the plot
-ax.set_title('M2 tidal constituent')
-ax.set_xlabel('Longitude')
-ax.set_ylabel('Latitude')
+    # Add a colorbar
+    cbar = plt.colorbar(im, ax=ax, orientation='vertical', shrink=0.7)
+    cbar.set_label('Tidal elevation (m)')
 
-# Show coastlines
-ax.coastlines()
+    # Customize the plot
+    ax.set_title('M2 tidal constituent')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
 
-# Show the plot
-plt.show()
+    # Annotate at the segment start
+    ax.plot(lon, lat, 'ko')
+    ax.annotate(annotation, xy=(lon, lat))
+
+    # Show coastlines
+    ax.coastlines()
+
+    # Show the plot
+    plt.show()
+
+
+for i in df_segments.index[df_segments['beaching_flag']][:5]:
+    plot_m2_tidal_elevation(df_segments['longitude_start'].values[i], df_segments['latitude_start'].values[i],
+                            df_segments['m2_tidal_elevation_mm'].values[i])
