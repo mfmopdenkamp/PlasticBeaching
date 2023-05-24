@@ -4,30 +4,36 @@ from sklearn.metrics import mean_squared_error
 import picklemanager as pickm
 import pandas as pd
 import analyzer as a
-import config
 import load_data
 import plotter
+
 # %% Settings
 plot_things = False
 
-percentage = 5
+percentage = 100
 random_set = 1
 gps_only = True
 undrogued_only = True
 threshold_aprox_distance_km = 12
 
-name = f'subset_{percentage}_{(random_set if percentage < 100 else "")}{("_gps" if gps_only else "")}' \
+name = f'subset_{percentage}{(f"_{random_set}" if percentage < 100 else "")}{("_gps" if gps_only else "")}' \
        f'{("_undrogued" if undrogued_only else "")}' \
        f'{("_" + str(threshold_aprox_distance_km) + "km" if threshold_aprox_distance_km is not None else "")}'
 
 ds_gdp = pickm.pickle_wrapper('ds_gdp_' + name, load_data.load_subset, percentage, gps_only, undrogued_only,
                               threshold_aprox_distance_km)
-shoreline_resolution = config.shoreline_resolution
+shoreline_resolution = 'f'
+
+print(f'Subset with {len(ds_gdp.traj)} trajectories loaded.')
 
 
-# %% Get segment indexes from close2shore mask
+# %% Create segments
+print(f'Creating segments...', end='')
+
+
 def get_segments(ds, seg_len_h):
-
+    """Split the trajectories into segments of a maximum length. The algorithm takes into account the fact that the
+    trajectories are not continuous in time, because of the filtering on approximate distance to the shoreline."""
     s_obs = []
     e_obs = []
 
@@ -36,15 +42,22 @@ def get_segments(ds, seg_len_h):
         times = ds.time.values[obs]
         durations = (times[1:] - times[:-1]) / np.timedelta64(1, 'h')
         hours_counter = 0
-        for ob, duration in zip(obs[1:], durations):
-            if hours_counter == 0:
-                s_obs.append(obs[0])
+        s_obs.append(obs[0])
+        for j, duration in enumerate(durations):
             hours_counter += duration
-            if hours_counter >= seg_len_h:
-                e_obs.append(ob)
+            if hours_counter == seg_len_h:
+                e_obs.append(obs[j+1])
+                s_obs.append(obs[j+1])
                 hours_counter = 0
+            elif hours_counter > seg_len_h:
+                e_obs.append(obs[j])
+                s_obs.append(obs[j])
+                hours_counter = 0
+
         if hours_counter > 0:
             e_obs.append(obs[-1])
+        else:
+            del s_obs[-1]
 
     return np.array(s_obs), np.array(e_obs)
 
@@ -52,10 +65,18 @@ def get_segments(ds, seg_len_h):
 segment_length_h = 24
 start_obs, end_obs = get_segments(ds_gdp, segment_length_h)
 
-print('Number of segments before splitting:', len(start_obs))
+# check if all segments have a duration between 0 and 24 hours
+segments_durations = (ds_gdp.time.values[end_obs-1] - ds_gdp.time.values[start_obs]) / np.timedelta64(1, 'h')
+if (segments_durations < 0).any() or (segments_durations > 24).any():
+    raise ValueError('Some segments have a duration < 1 or > 24 hours!')
+
+print(f'Number of {segment_length_h}h segments :', len(start_obs))
 
 
 # %% Get beaching flags and beaching observations
+print(f'Getting beaching flags and beaching observations...', end='')
+
+
 def get_beaching_flags(ds, s_obs, e_obs):
     if len(s_obs) != len(e_obs):
         raise ValueError('"starts_obs" and "end_obs" must have equal lengths!')
@@ -81,7 +102,6 @@ print('Number of beaching events:', beaching_flags.sum())
 
 # %% Delete segments that start with beaching observations
 
-
 mask_start_beaching = np.zeros(len(start_obs), dtype=bool)
 
 
@@ -95,10 +115,12 @@ end_obs = end_obs[~mask_start_beaching]
 beaching_flags = beaching_flags[~mask_start_beaching]
 
 print('Number of deleted segments because they start with beaching: ', mask_start_beaching.sum())
-print('Number of beaching events:', beaching_flags.sum())
 
 
 # %% Get shore parameters
+print(f'Getting new features from shore...', end='')
+
+
 def get_shore_parameters(ds):
     df_shore = load_data.get_shoreline(shoreline_resolution, points_only=True)
 
@@ -107,11 +129,11 @@ def get_shore_parameters(ds):
     n = len(ds.obs)
     output_dtype = np.float32
     init_distance = np.finfo(output_dtype).max
-    shortest_distances = np.ones(n, dtype=output_dtype) * init_distance
-    distances_east = np.ones(n, dtype=output_dtype) * init_distance
-    distances_north = np.ones(n, dtype=output_dtype) * init_distance
+    shortest_dist = np.ones(n, dtype=output_dtype) * init_distance
+    dist_east = np.ones(n, dtype=output_dtype) * init_distance
+    dist_north = np.ones(n, dtype=output_dtype) * init_distance
     rmsd = np.zeros(n, dtype=output_dtype)
-    no_near_shore_found_indexes = []
+    no_near_shore_indexes = []
 
     for i_coord, coord in enumerate(df_gdp.itertuples()):
 
@@ -129,13 +151,13 @@ def get_shore_parameters(ds):
             for i_s, shore_point in enumerate(df_shore_box.geometry):
                 distances_shore_box[i_s] = coord.geometry.distance(shore_point)
 
-            shortest_distances[i_coord], i_nearest_shore_point = np.min(distances_shore_box),\
-                                                                 np.argmin(distances_shore_box)
+            shortest_dist[i_coord] = np.min(distances_shore_box)
+            i_nearest_shore_point = np.argmin(distances_shore_box)
 
             index_point = df_shore_box.index[i_nearest_shore_point]
             # determine direction to this point
-            distances_north[i_coord] = coord.geometry.y - df_shore_box.geometry[index_point].y
-            distances_east[i_coord] = coord.geometry.x - df_shore_box.geometry[index_point].x
+            dist_north[i_coord] = coord.geometry.y - df_shore_box.geometry[index_point].y
+            dist_east[i_coord] = coord.geometry.x - df_shore_box.geometry[index_point].x
 
             # fit linear shoreline direction
             x = np.array(df_shore_box.geometry.x.values).reshape(-1, 1)
@@ -146,14 +168,16 @@ def get_shore_parameters(ds):
             rmsd[i_coord] = np.sqrt(mean_squared_error(y, lr.predict(x)))
 
         else:
-            no_near_shore_found_indexes.append(i_coord)
-    if no_near_shore_found_indexes:
-        print(f'No near shore found for segments : {no_near_shore_found_indexes}')
-    return shortest_distances, distances_east, distances_north, rmsd, no_near_shore_found_indexes
+            no_near_shore_indexes.append(i_coord)
+    if no_near_shore_indexes:
+        print(f'No near shore found for segments : {no_near_shore_indexes}')
+    return shortest_dist, dist_east, dist_north, rmsd, no_near_shore_indexes
 
 
-shortest_distances, distances_east, distances_north, rmsd, no_near_shore_found_indexes = get_shore_parameters(
+shortest_distances, distances_east, distances_north, rmsds, no_near_shore_found_indexes = get_shore_parameters(
     ds_gdp.isel(obs=start_obs))
+
+print('Done.')
 
 # %% Drop segments where no shore was found (for some reason!!!)
 start_obs = np.delete(start_obs, no_near_shore_found_indexes)
@@ -162,13 +186,13 @@ shortest_distances = np.delete(shortest_distances, no_near_shore_found_indexes)
 distances_east = np.delete(distances_east, no_near_shore_found_indexes)
 distances_north = np.delete(distances_north, no_near_shore_found_indexes)
 beaching_flags = np.delete(beaching_flags, no_near_shore_found_indexes)
-rmsd = np.delete(rmsd, no_near_shore_found_indexes)
+rmsds = np.delete(rmsds, no_near_shore_found_indexes)
 
 print('Number of deleted segments because no shore was found: ', len(no_near_shore_found_indexes))
 print('Remaining number of beaching events:', beaching_flags.sum())
 
 # %% Create supervised dataframe
-n = len(start_obs)
+
 df = pd.DataFrame(data={'time_start': ds_gdp.time[start_obs],
                         'time_end': ds_gdp.time[end_obs - 1],
                         'latitude_start': ds_gdp.latitude[start_obs],
@@ -190,7 +214,7 @@ df.sort_values('time_start', inplace=True)
 
 # %% Save the dataframe to csv
 
-df.to_csv(f'data/segments_{name}.csv', index_label='ID')
+df.to_csv(f'data/segments_{segment_length_h}h_{name}.csv', index_label='ID')
 
 
 # %% Plotting

@@ -1,14 +1,13 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
-import tomli
+import load_data as ld
 
-with open('config.toml', 'rb') as f:
-    config = tomli.load(f)
 
-name = config['name']
+data_folder = ld.data_dir_name
+name = 'segments_24h_subset_100_gps_undrogued_12km.csv'
 
-df = pd.read_csv(f'data/{name}.csv',
+df = pd.read_csv(f'data/{name}',
                  parse_dates=['time_start', 'time_end'], index_col='ID',
                  infer_datetime_format=True)
 

@@ -12,7 +12,7 @@ from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 import config
 
-df = pd.read_csv('data/' + config.filename_wind_plus, parse_dates=['time_start', 'time_end'])
+df = pd.read_csv('data/' + config.csv_wind2_tides, parse_dates=['time_start', 'time_end'])
 
 cor = df.corr(numeric_only=True)
 
