@@ -1,12 +1,15 @@
 import numpy as np
 import pandas as pd
 import math
-import config
 import load_data
 import analyzer as a
 
-df = pd.read_csv('data/' + config.filename_wind, parse_dates=['time_start', 'time_end'])
-df_shoreline = load_data.get_shoreline(config.shoreline_resolution, points_only=True)
+basic_file = 'segments_24h_subset_100_gps_undrogued_12km'
+wind_file = basic_file + '_wind.csv'
+wind2_file = basic_file + '_wind2.csv'
+
+df = pd.read_csv('data/' + wind_file, parse_dates=['time_start', 'time_end'], index_col='ID')
+df_shoreline = load_data.get_shoreline('f', points_only=True)
 
 # %% Calculate the inproduct of the wind vector and the vector to the nearest shore
 inproducts = np.empty(len(df))
@@ -57,7 +60,14 @@ def get_points_in_wind_direction(df_gdp, df_shore, alpha, side_length):
 
     return count
 
+alpha = 45
+distance = 10000
+degrees = 360/np.array([16, 8, 6, 4, 2, 4/3, 1])
+var_distances = distance*np.sqrt(alpha/degrees)
 
-df['upwind_shore_counts'] = get_points_in_wind_direction(df_gdp, df_shoreline, math.pi/4, 10000)
-
-df.to_csv('data/' + config.filename_wind + '_plus')
+for degree, var_dist in zip(degrees, var_distances):
+    df[f'upwind_shore_counts_{degree}_{var_dist}'] = get_points_in_wind_direction(df_gdp, df_shoreline,
+                                                                                  degree/180*math.pi, var_dist)
+    df[f'upwind_shore_counts_{degree}_{distance}'] = get_points_in_wind_direction(df_gdp, df_shoreline,
+                                                                                  degree / 180 * math.pi, distance)
+df.to_csv('data/' + wind2_file)

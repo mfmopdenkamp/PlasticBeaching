@@ -13,8 +13,8 @@ basic_file = 'subtrajs_random_subset_5_2_gps_only_undrogued_only'
 wind_file = basic_file + '_wind2.csv'
 tide_file = basic_file + '_wind2_tides.csv'
 
-if os.path.exists('data/' + tide_file):
-    df_segments = pd.read_csv('data/' + tide_file)
+if os.path.exists('data/tidals/' + tide_file):
+    df_segments = pd.read_csv('data/tidals' + tide_file)
 else:
 
     df_segments = pd.read_csv('data/'+wind_file, parse_dates=['time_start', 'time_end'])

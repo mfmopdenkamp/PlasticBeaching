@@ -1,17 +1,16 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
-import load_data as ld
 
+name = 'segments_24h_subset_100_2003-10-01_2003-10-31_12km'
 
-data_folder = ld.data_dir_name
-name = 'segments_24h_subset_100_gps_undrogued_12km.csv'
-
-df = pd.read_csv(f'data/{name}',
+df = pd.read_csv(f'data/{name}.csv',
                  parse_dates=['time_start', 'time_end'], index_col='ID',
                  infer_datetime_format=True)
 
-prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
+# prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
+prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
+
 n = df.shape[0]
 V_mean = np.zeros(n)
 u_mean = np.zeros(n)
@@ -27,15 +26,17 @@ u_std = np.zeros(n)
 v_std = np.zeros(n)
 
 
+prev_file_paths = []
 for i_event, subtraj in enumerate(df.itertuples()):
     print(f'Do something from start time : {subtraj.time_start} until : {subtraj.time_end}')
     times = pd.date_range(subtraj.time_start, subtraj.time_end, freq='H')
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
     file_paths = [prefix_era5_data+yymm+'.nc' for yymm in YYYYMM_keys]
-    if len(file_paths) > 1:
-        ds = xr.open_mfdataset(file_paths)
-    else:
-        ds = xr.open_dataset(file_paths[0])
+    if file_paths != prev_file_paths:
+        if len(file_paths) > 1:
+            ds = xr.open_mfdataset(file_paths)
+        else:
+            ds = xr.open_dataset(file_paths[0])
 
     # interpolate lons and lats
     lat = ds.latitude[np.argmin(abs(ds.latitude.values - subtraj.latitude_start))]
@@ -55,7 +56,7 @@ for i_event, subtraj in enumerate(df.itertuples()):
     u_std[i_event] = np.std(ds.u10)
     v_std[i_event] = np.std(ds.v10)
 
-    ds.close()
+    file_path_prev = file_paths
 
 df = df.assign(V_mean=V_mean,
                u_mean=u_mean,

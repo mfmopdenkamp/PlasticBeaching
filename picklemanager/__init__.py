@@ -17,7 +17,7 @@ def load_pickle(pickle_path):
         print(f'Loading {pickle_path}... ', end='')
         with pickle_path.open(mode='rb') as f:
             obj = pickle.load(f)
-        print("Done")
+        print("Done.")
         return obj
     else:
         raise FileNotFoundError('Pickle not found.')

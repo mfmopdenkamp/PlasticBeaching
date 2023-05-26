@@ -173,8 +173,23 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
     return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
-def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, threshold_aprox_distance_km=None):
+def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, threshold_aprox_distance_km=None,
+                start_date=None, end_date=None):
     ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
+
+    if start_date is not None:
+        if isinstance(start_date, str):
+            start_date = pd.to_datetime(start_date)
+        obs_start = ds.obs[ds.time >= start_date]
+        traj_start = a.traj_from_obs(ds, obs_start)
+        ds = ds.isel(obs=obs_start, traj=traj_start)
+
+    if end_date is not None:
+        if isinstance(end_date, str):
+            end_date = pd.to_datetime(end_date)
+        obs_end = ds.obs[ds.time <= end_date]
+        traj_end = a.traj_from_obs(ds, obs_end)
+        ds = ds.isel(obs=obs_end, traj=traj_end)
 
     if traj_percentage < 100:
         n = len(ds.traj)

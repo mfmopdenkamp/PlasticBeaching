@@ -42,11 +42,15 @@ y = df[y_column]
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.5, random_state=42, shuffle=False)
 
-param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20]}
+best_params_1 = {'max_depth': 5, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 50}
+param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 'max_depth':[None, 5, 10, 20],
+              'max_features':[None, 'sqrt', 'log2']}
 estimator = RandomForestClassifier()
 grid_search = HalvingGridSearchCV(estimator, param_grid=param_grid, verbose=2)
 grid_search.fit(x, y)
 df_gs = pd.DataFrame(grid_search.cv_results_)
+
+estimator = RandomForestClassifier(**best_params_1)
 
 estimator.fit(x_train, y_train)
 
@@ -55,3 +59,16 @@ y_pred = estimator.predict(x_test)
 a_score = accuracy_score(y_test, y_pred)
 
 c_matrix = confusion_matrix(y_test, y_pred)
+
+# plot the best features
+importances = estimator.feature_importances_
+std = np.std([tree.feature_importances_ for tree in estimator.estimators_], axis=0)
+indices = np.argsort(importances)[::-1]
+plt.figure()
+plt.title("Feature importances")
+plt.bar(range(x.shape[1]), importances[indices], color="r", yerr=std[indices], align="center")
+plt.xticks(range(x.shape[1]), x.columns[indices], rotation=90)
+plt.xlim([-1, x.shape[1]])
+plt.tight_layout()
+plt.show()
+
