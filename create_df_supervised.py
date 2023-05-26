@@ -31,44 +31,42 @@ print(f'Subset with {len(ds_gdp.traj)} trajectories loaded.')
 print(f'Creating segments...', end='')
 
 
-def get_segments(ds, seg_len_h):
+def get_segments(ds, max_seg_len_h):
     """Split the trajectories into segments of a maximum length. The algorithm takes into account the fact that the
     trajectories are not continuous in time, because of the filtering on approximate distance to the shoreline."""
-    s_obs = []
-    e_obs = []
+    start_segment = []
+    end_segment = []
 
     for ID in ds.ID.values:
         obs = ds.obs.values[ds.ids == ID]
+        # check if obs is sequential
+        if np.any(obs[1:] - obs[:-1] != 1):
+            print('Warning: trajectory is not sequential in time!')
+
         times = ds.time.values[obs]
-        durations = (times[1:] - times[:-1]) / np.timedelta64(1, 'h')
-        hours_counter = 0
-        s_obs.append(obs[0])
-        for j, duration in enumerate(durations):
-            hours_counter += duration
-            if hours_counter == seg_len_h:
-                e_obs.append(obs[j+1])
-                s_obs.append(obs[j+1])
-                hours_counter = 0
-            elif hours_counter > seg_len_h:
-                e_obs.append(obs[j])
-                s_obs.append(obs[j])
-                hours_counter = 0
+        durations_h = (times[1:] - times[:-1]) / np.timedelta64(1, 'h')
+        segment_duration = 0
 
-        if hours_counter > 0:
-            e_obs.append(obs[-1])
-        else:
-            del s_obs[-1]
+        for j, duration in enumerate(durations_h):
+            if duration == 1:
+                segment_duration += duration
+                if segment_duration == max_seg_len_h:
+                    end_segment.append(obs[j+1]+1)
+                    start_segment.append(end_segment[-1] - max_seg_len_h - 1)
+                    segment_duration = 0
+            else:
+                segment_duration = 0
 
-    return np.array(s_obs), np.array(e_obs)
+    return np.array(start_segment), np.array(end_segment)
 
 
 segment_length_h = 24
 start_obs, end_obs = get_segments(ds_gdp, segment_length_h)
 
-# check if all segments have a duration between 0 and 24 hours
+# check if all segments have a duration of segment_length_h
 segments_durations = (ds_gdp.time.values[end_obs-1] - ds_gdp.time.values[start_obs]) / np.timedelta64(1, 'h')
-if (segments_durations < 0).any() or (segments_durations > 24).any():
-    raise ValueError('Some segments have a duration < 1 or > 24 hours!')
+if (segments_durations != 24).any():
+    raise ValueError('Some segments have a duration not equal to 24 hours!')
 
 print(f'Number of {segment_length_h}h segments :', len(start_obs))
 
@@ -195,6 +193,7 @@ print('Remaining number of beaching events:', beaching_flags.sum())
 
 df = pd.DataFrame(data={'time_start': ds_gdp.time[start_obs],
                         'time_end': ds_gdp.time[end_obs - 1],
+                        'drifter_id': ds_gdp.ids[start_obs],
                         'latitude_start': ds_gdp.latitude[start_obs],
                         'latitude_end': ds_gdp.latitude[end_obs - 1],
                         'longitude_start': ds_gdp.longitude[start_obs],

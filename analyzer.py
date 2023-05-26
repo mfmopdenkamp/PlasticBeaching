@@ -100,6 +100,16 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return distance
 
 
+def longitude_translator(lon):
+    if isinstance(lon, int) or isinstance(lon, float):
+        if lon < 0:
+            return 360 + lon
+        else:
+            return lon
+    elif isinstance(lon, np.ndarray):
+        lon[lon < 0] += 360
+        return lon
+
 def get_lonlatbox(lon, lat, side_length):
     """side_length in meters"""
     lon_length = side_length / (111320 * math.cos(math.radians(lat)))  # 1 degree longitude is 111320m * cos(latitude)
