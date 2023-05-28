@@ -27,11 +27,24 @@ name = f'subset_{percentage}{(f"_{random_set}" if percentage < 100 else "")}'\
 
 ds_gdp = pickm.pickle_wrapper('ds_gdp_' + name, load_data.load_subset, percentage, gps_only, undrogued_only,
                               threshold_aprox_distance_km, start_date, end_date)
+
 shoreline_resolution = 'f'
 
 print(f'Subset with {len(ds_gdp.traj)} trajectories loaded.')
 
 
+# %% Check if observations are in order of drifter IDs
+def check_obs_in_order_of_ID(ds):
+    ids = ds.ids.values
+    unique_ids, indices = np.unique(ids, return_index=True)
+    sorted_indices = np.sort(indices)
+    unique_ids_sorted = ids[sorted_indices]
+
+    if abs(ds.ID.values - unique_ids_sorted).sum() > 0:
+        raise ValueError('Observations are not in order of drifter IDs!')
+
+
+check_obs_in_order_of_ID(ds_gdp)
 # %% Create segments
 print(f'Creating segments...', end='')
 
@@ -41,6 +54,7 @@ def get_segments(ds, max_seg_len_h):
     trajectories are not continuous in time, because of the filtering on approximate distance to the shoreline."""
     start_segment = []
     end_segment = []
+    segment_drifter_id = []
 
     for ID in ds.ID.values:
         obs = ds.obs.values[ds.ids == ID]
@@ -58,6 +72,7 @@ def get_segments(ds, max_seg_len_h):
                 if segment_duration == max_seg_len_h:
                     end_segment.append(obs[j+1]+1)
                     start_segment.append(end_segment[-1] - max_seg_len_h - 1)
+                    segment_drifter_id.append(ID)
                     segment_duration = 0
             else:
                 segment_duration = 0
@@ -85,21 +100,19 @@ def get_beaching_flags(ds, s_obs, e_obs):
         raise ValueError('"starts_obs" and "end_obs" must have equal lengths!')
 
     b_flags = np.zeros(len(s_obs), dtype=bool)
-    b_obs_list = {}
+    mask_drifter_on_shore = np.zeros(len(ds.obs), dtype=bool)
+
+    for traj in ds.traj.values:
+        obs = a.obs_from_traj(ds, traj)
+        mask_drifter_on_shore[obs] = a.get_obs_drifter_on_shore(ds.isel(obs=obs, traj=traj))
+
     for index, (i_s, i_e) in enumerate(zip(s_obs, e_obs)):
-
-        obs = np.arange(i_s, i_e)
-        traj = a.traj_from_obs(ds, obs)
-
-        ds_segment = ds.isel(obs=obs, traj=traj)
-        mask_drifter_on_shore = a.get_obs_drifter_on_shore(ds_segment)
-        if mask_drifter_on_shore.sum() > 0:
+        if mask_drifter_on_shore[i_s:i_e].any():
             b_flags[index] = True
-            b_obs_list[i_s] = mask_drifter_on_shore
-    return b_flags, b_obs_list
+    return b_flags, mask_drifter_on_shore
 
 
-beaching_flags, beaching_obs_list = get_beaching_flags(ds_gdp, start_obs, end_obs)
+beaching_flags, beaching_mask = get_beaching_flags(ds_gdp, start_obs, end_obs)
 
 print('Number of beaching events:', beaching_flags.sum())
 
@@ -107,11 +120,9 @@ print('Number of beaching events:', beaching_flags.sum())
 
 mask_start_beaching = np.zeros(len(start_obs), dtype=bool)
 
-
 for i, start_ob in zip(np.where(beaching_flags)[0], start_obs[beaching_flags]):
-    if beaching_obs_list[start_ob][0]:
+    if beaching_mask[start_ob]:
         mask_start_beaching[i] = True
-
 
 start_obs = start_obs[~mask_start_beaching]
 end_obs = end_obs[~mask_start_beaching]

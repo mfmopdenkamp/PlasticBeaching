@@ -153,7 +153,7 @@ def get_obs_drifter_on_shore(ds, minimum_time_h=4):
         return beaching_tags
 
     # for Argos look at velocities only
-    if not ds.location_type.values[0]:
+    if not ds.location_type.values:
         velocities = get_absolute_velocity(ds)
 
         count = 0
