@@ -58,18 +58,18 @@ for i_event, subtraj in enumerate(df.itertuples()):
 
     file_path_prev = file_paths
 
-df = df.assign(V_mean=V_mean,
-               u_mean=u_mean,
-               v_mean=v_mean,
-               V_max=V_max,
-               u_max=u_max,
-               v_max=v_max,
-               V_min=V_min,
-               u_min=u_min,
-               v_min=v_min,
-               V_std=V_std,
-               u_std=u_std,
-               v_std=v_std
+df = df.assign(ERA5_V_mean=V_mean,
+               ERA5_u_mean=u_mean,
+               ERA5_v_mean=v_mean,
+               ERA5_V_max=V_max,
+               ERA5_u_max=u_max,
+               ERA5_v_max=v_max,
+               ERA5_V_min=V_min,
+               ERA5_u_min=u_min,
+               ERA5_v_min=v_min,
+               ERA5_V_std=V_std,
+               ERA5_u_std=u_std,
+               ERA5_v_std=v_std
                )
 
 df.to_csv(f'data/{name}_wind.csv')

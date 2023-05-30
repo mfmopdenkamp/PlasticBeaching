@@ -3,7 +3,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
 import picklemanager as pickm
 import pandas as pd
-import analyzer as a
+import toolbox as tb
 import load_data
 import plotter
 
@@ -103,8 +103,8 @@ def get_beaching_flags(ds, s_obs, e_obs):
     mask_drifter_on_shore = np.zeros(len(ds.obs), dtype=bool)
 
     for traj in ds.traj.values:
-        obs = a.obs_from_traj(ds, traj)
-        mask_drifter_on_shore[obs] = a.get_obs_drifter_on_shore(ds.isel(obs=obs, traj=traj))
+        obs = tb.obs_from_traj(ds, traj)
+        mask_drifter_on_shore[obs] = tb.get_obs_drifter_on_shore(ds.isel(obs=obs, traj=traj))
 
     for index, (i_s, i_e) in enumerate(zip(s_obs, e_obs)):
         if mask_drifter_on_shore[i_s:i_e].any():
@@ -138,7 +138,7 @@ print(f'Getting new features from shore...', end='')
 def get_shore_parameters(ds):
     df_shore = load_data.get_shoreline(shoreline_resolution, points_only=True)
 
-    df_gdp = a.ds2geopandas_dataframe(ds.latitude.values, ds.longitude.values, df_shore)
+    df_gdp = tb.ds2geopandas_dataframe(ds.latitude.values, ds.longitude.values, df_shore)
 
     n = len(ds.obs)
     output_dtype = np.float32
@@ -152,8 +152,8 @@ def get_shore_parameters(ds):
     for i_coord, coord in enumerate(df_gdp.itertuples()):
 
         # get shore points in a box around the coordinate
-        min_lon, max_lon, min_lat, max_lat = a.get_lonlatbox(coord.longitude, coord.latitude,
-                                                             threshold_aprox_distance_km*1000 + 4000)
+        min_lon, max_lon, min_lat, max_lat = tb.get_lonlatbox(coord.longitude, coord.latitude,
+                                                              threshold_aprox_distance_km * 1000 + 4000)
 
         df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
                                 (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]

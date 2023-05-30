@@ -2,8 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import geopandas as gpd
 import math
-import xarray as xr
-import pandas as pd
 from tqdm import tqdm
 import time
 from scipy.interpolate import griddata
