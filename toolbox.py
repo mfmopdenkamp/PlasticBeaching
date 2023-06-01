@@ -27,7 +27,7 @@ def get_absolute_velocity(ds):
     return np.hypot(ds.vn.values, ds.ve.values)
 
 
-def ds2geopandas_dataframe(lats, lons, df_shore):
+def dataset2geopandas(lats, lons, df_shore):
 
     gdf = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons},
                            geometry=gpd.points_from_xy(lons, lats),
@@ -110,7 +110,7 @@ def longitude_translator(lon):
 
 def get_lonlatbox(lon, lat, side_length):
     """side_length in meters"""
-    lon_length = side_length / (111320 * math.cos(math.radians(lat)))  # 1 degree longitude is 111320m * cos(latitude)
+    lon_length = side_length / (111320 * math.cos(math.radians(lat))) / 2  # 1 degree longitude is 111320m * cos(latitude)
     min_lon = lon - lon_length
     if min_lon < -180:
         min_lon += 360
@@ -118,7 +118,7 @@ def get_lonlatbox(lon, lat, side_length):
     if max_lon > 180:
         max_lon -= 360
 
-    lat_length = side_length / 111320  # 1 degree latitude is 111.32 km
+    lat_length = side_length / 111320 / 2  # 1 degree latitude is 111.32 km
     min_lat = lat - lat_length
     max_lat = lat + lat_length
 

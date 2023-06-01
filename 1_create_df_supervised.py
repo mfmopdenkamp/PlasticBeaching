@@ -135,12 +135,12 @@ print('Number of deleted segments because they start with beaching: ', mask_star
 print(f'Getting new features from shore...', end='')
 
 
-def get_shore_parameters(ds):
-    df_shore = load_data.get_shoreline(shoreline_resolution, points_only=True)
+def get_shore_parameters(lats, lons):
+    gdf_shore = load_data.get_shoreline(shoreline_resolution, points_only=True)
 
-    df_gdp = tb.ds2geopandas_dataframe(ds.latitude.values, ds.longitude.values, df_shore)
+    gdf_seg = tb.dataset2geopandas(lats, lons, gdf_shore)
 
-    n = len(ds.obs)
+    n = len(lats)
     output_dtype = np.float32
     init_distance = np.finfo(output_dtype).max
     shortest_dist = np.ones(n, dtype=output_dtype) * init_distance
@@ -149,14 +149,14 @@ def get_shore_parameters(ds):
     rmsd = np.zeros(n, dtype=output_dtype)
     no_near_shore_indexes = []
 
-    for i_coord, coord in enumerate(df_gdp.itertuples()):
+    for i_coord, coord in enumerate(gdf_seg.itertuples()):
 
         # get shore points in a box around the coordinate
         min_lon, max_lon, min_lat, max_lat = tb.get_lonlatbox(coord.longitude, coord.latitude,
                                                               threshold_aprox_distance_km * 1000 + 4000)
 
-        df_shore_box = df_shore[(df_shore['longitude'] >= min_lon) & (df_shore['longitude'] <= max_lon) &
-                                (df_shore['latitude'] >= min_lat) & (df_shore['latitude'] <= max_lat)]
+        df_shore_box = gdf_shore[(gdf_shore['longitude'] >= min_lon) & (gdf_shore['longitude'] <= max_lon) &
+                                (gdf_shore['latitude'] >= min_lat) & (gdf_shore['latitude'] <= max_lat)]
 
         # determine distance to nearest shore point
         if not df_shore_box.empty:
@@ -189,7 +189,7 @@ def get_shore_parameters(ds):
 
 
 shortest_distances, distances_east, distances_north, rmsds, no_near_shore_found_indexes = get_shore_parameters(
-    ds_gdp.isel(obs=start_obs))
+    ds_gdp.latitude.values[start_obs], ds_gdp.longitude.values[start_obs])
 
 print('Done.')
 
@@ -219,6 +219,7 @@ df = pd.DataFrame(data={'time_start': ds_gdp.time[start_obs],
                         'distance_nearest_shore': shortest_distances,
                         'de': distances_east,
                         'dn': distances_north,
+                        'rmsd_shore': rmsds,
                         'beaching_flag': beaching_flags})
 # Make sure the time is in datetime format
 df['time_start'] = pd.to_datetime(df['time_start'])

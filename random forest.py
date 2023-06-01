@@ -14,6 +14,11 @@ from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 
 df = pd.read_csv('data/subtrajs_random_subset_5_2_gps_only_undrogued_only_wind2_tides.csv', parse_dates=['time_start', 'time_end'])
 
+# normalize the data
+for column in df.columns:
+    if column not in ['time_start', 'time_end', 'beaching_flag']:
+        df[column] = (df[column] - df[column].mean()) / df[column].std()
+
 cor = df.corr(numeric_only=True)
 
 y_column = 'beaching_flag'
@@ -45,10 +50,11 @@ x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.5, random_
 best_params_1 = {'max_depth': 5, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 50}
 param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 'max_depth':[None, 5, 10, 20],
               'max_features':[None, 'sqrt', 'log2']}
-estimator = RandomForestClassifier()
-grid_search = HalvingGridSearchCV(estimator, param_grid=param_grid, verbose=2)
-grid_search.fit(x, y)
-df_gs = pd.DataFrame(grid_search.cv_results_)
+
+# estimator = RandomForestClassifier()
+# grid_search = HalvingGridSearchCV(estimator, param_grid=param_grid, verbose=2)
+# grid_search.fit(x, y)
+# df_gs = pd.DataFrame(grid_search.cv_results_)
 
 estimator = RandomForestClassifier(**best_params_1)
 

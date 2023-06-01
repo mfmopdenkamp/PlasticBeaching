@@ -1,7 +1,7 @@
 import xarray as xr
 import pandas as pd
 import numpy as np
-import analyzer as a
+import toolbox as a
 import matplotlib
 import matplotlib.pyplot as plt
 import cartopy

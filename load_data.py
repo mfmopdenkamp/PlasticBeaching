@@ -4,7 +4,7 @@ import picklemanager as pickm
 import xarray as xr
 import time
 import os
-import analyzer as a
+import toolbox as tb
 import numpy as np
 from shapely.geometry import Point
 
@@ -112,24 +112,28 @@ def get_raster_distance_to_shore_04deg():
                                 header=None, compression='bz2')
 
 
-def _polygons_2_points(resolution):
-    df = get_shoreline(resolution)
+def geometry2points(gdf):
 
-    shoreline_points = []
-    lats = []
-    lons = []
+    points = []
+    data = {}
+    for col in gdf.columns:
+        data[col] = []
+    data['latitude'] = []
+    data['longitude'] = []
 
-    for polygon in df.geometry:
-        for coord in polygon.exterior.coords:
-            shoreline_points.append(Point(coord))
-            lons.append(coord[0])
-            lats.append(coord[1])
+    for i, geo in enumerate(gdf.geometry):
+        for coord in (geo.exterior.coords if geo.geom_type == 'Polygon' else geo.coords):
+            points.append(Point(coord))
+            data['longitude'].append(coord[0])
+            data['latitude'].append(coord[1])
+            for col in gdf.columns:
+                data[col].append(gdf[col][i])
 
-    df = gpd.GeoDataFrame({'latitude': lats, 'longitude': lons}, geometry=shoreline_points, crs="WGS 84")
+    gdf = gpd.GeoDataFrame(data, geometry=points, crs=gdf.crs)
 
     # Use projected CRS ESPG:3857 for better distance calculations
-    df.to_crs(crs=3857, inplace=True)
-    return df
+    gdf.to_crs(crs=3857, inplace=True)
+    return gdf
 
 
 def get_shoreline(resolution, points_only=False):
@@ -149,13 +153,26 @@ def get_shoreline(resolution, points_only=False):
     :return:
     """
     if points_only:
-        df_shore = pickm.pickle_wrapper(f'shoreline_{resolution}_points', _polygons_2_points, resolution)
+        gdf = get_shoreline(resolution)
+        gdf_shore = pickm.pickle_wrapper(f'shoreline_{resolution}_points', geometry2points, gdf)
     else:
-        df_shore = pickm.pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
+        gdf_shore = pickm.pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
                                         f'{data_dir_name}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1'
                                         f'.shp')
 
-    return df_shore
+    return gdf_shore
+
+
+def get_coastal_morphology(points_only=False):
+
+    if points_only:
+        gdf_cm = get_coastal_morphology()
+        gdf_cm = pickm.pickle_wrapper('coastal_morphology_points', geometry2points, gdf_cm)
+    else:
+        gdf_cm = pickm.pickle_wrapper('coastal_morphology', gpd.read_file,
+                                      f'{data_dir_name}631485339c5c1bab_ECVGS2019_Q2903/631485339c5c1bab_ECVGS2019_Q2903/data/CoastalGeomorphology/CoastalGeomorphology.shp')
+
+    return gdf_cm
 
 
 def get_bathymetry():
@@ -181,36 +198,36 @@ def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, thres
         if isinstance(start_date, str):
             start_date = pd.to_datetime(start_date)
         obs_start = ds.obs[ds.time >= start_date]
-        traj_start = a.traj_from_obs(ds, obs_start)
+        traj_start = tb.traj_from_obs(ds, obs_start)
         ds = ds.isel(obs=obs_start, traj=traj_start)
 
     if end_date is not None:
         if isinstance(end_date, str):
             end_date = pd.to_datetime(end_date)
         obs_end = ds.obs[ds.time <= end_date]
-        traj_end = a.traj_from_obs(ds, obs_end)
+        traj_end = tb.traj_from_obs(ds, obs_end)
         ds = ds.isel(obs=obs_end, traj=traj_end)
 
     if traj_percentage < 100:
         n = len(ds.traj)
         size = int(n * traj_percentage / 100)
         traj_random = np.random.choice(np.arange(len(ds.traj)), size=size, replace=False)
-        obs_random = a.obs_from_traj(ds, traj_random)
+        obs_random = tb.obs_from_traj(ds, traj_random)
         ds = ds.isel(traj=traj_random, obs=obs_random)
 
     if gps_only:
         traj_gps = np.where(ds.location_type.values)[0]
-        obs_gps = a.obs_from_traj(ds, traj_gps)
+        obs_gps = tb.obs_from_traj(ds, traj_gps)
         ds = ds.isel(traj=traj_gps, obs=obs_gps)
 
     if undrogued_only:
-        obs_undrogued = ds.obs[~a.get_drogue_presence(ds)]
-        traj_undrogued = a.traj_from_obs(ds, obs_undrogued)
+        obs_undrogued = ds.obs[~tb.get_drogue_presence(ds)]
+        traj_undrogued = tb.traj_from_obs(ds, obs_undrogued)
         ds = ds.isel(obs=obs_undrogued, traj=traj_undrogued)
 
     if threshold_aprox_distance_km is not None:
         obs_close2shore = ds.obs[ds.aprox_distance_shoreline.values < threshold_aprox_distance_km]
-        traj_close2shore = a.traj_from_obs(ds, obs_close2shore)
+        traj_close2shore = tb.traj_from_obs(ds, obs_close2shore)
         ds = ds.isel(traj=traj_close2shore, obs=obs_close2shore)
 
     return ds
