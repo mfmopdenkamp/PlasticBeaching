@@ -7,25 +7,25 @@ import matplotlib.pyplot as plt
 import cartopy
 import cartopy.crs as ccrs
 import os
+from file_names import *
 
 plot_test = True
-basic_file = 'subtrajs_random_subset_5_2_gps_only_undrogued_only'
-wind_file = basic_file + '_wind2.csv'
-tide_file = basic_file + '_wind2_tides.csv'
 
-if os.path.exists('data/tidals/' + tide_file):
-    df_segments = pd.read_csv('data/tidals' + tide_file)
+if os.path.exists('data/' + file_name_4):
+    df_segments = pd.read_csv('data/'+file_name_4, parse_dates=['time_start', 'time_end'])
 else:
 
-    df_segments = pd.read_csv('data/'+wind_file, parse_dates=['time_start', 'time_end'])
+    df_segments = pd.read_csv('data/' + file_name_3, parse_dates=['time_start', 'time_end'])
 
     for tidal_contituent in ['m2', 'm4', 's2', 'n2', 'k1', 'k2', 'o1', 'p1', 'q1']:
-        ds = xr.open_dataset(f'data/h_{tidal_contituent}_tpxo9_atlas_30.nc')
+        ds = xr.open_dataset(f'data/tidals/h_{tidal_contituent}_tpxo9_atlas_30.nc')
 
         new_column = np.zeros(df_segments.shape[0], dtype=int)
         lats = df_segments.latitude_start.values
         lons = a.longitude_translator(df_segments.longitude_start.values.copy())
         for i, (lat, lon) in enumerate(zip(lats, lons)):
+
+            # TODO: interpolate linearly between the four closest points
 
             i_lat = np.argmin(abs(ds.lat_z.values - lat))
             i_lon = np.argmin(abs(ds.lon_z.values - lon))
@@ -37,7 +37,7 @@ else:
 
         ds.close()
 
-    df_segments.to_csv('data/'+tide_file, index=False)
+    df_segments.to_csv('data/'+file_name_4, index=False)
 
 
 if plot_test:

@@ -1,15 +1,14 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
+from file_names import *
 
-name = 'segments_24h_subset_100_2003-10-01_2003-10-31_12km'
-
-df = pd.read_csv(f'data/{name}.csv',
+df = pd.read_csv(f'data/{file_name_1}.csv',
                  parse_dates=['time_start', 'time_end'], index_col='ID',
                  infer_datetime_format=True)
 
-# prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
-prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
+prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
+# prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
 
 n = df.shape[0]
 abs_mean = np.zeros(n)
@@ -71,4 +70,4 @@ df = df.assign(wind10m_abs_mean=abs_mean,
                wind10m_v_std=v_std
                )
 
-df.to_csv(f'data/{name}_wind.csv')
+df.to_csv(f'data/{file_name_2}.csv')
