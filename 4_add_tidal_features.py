@@ -2,7 +2,6 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import toolbox as a
-import matplotlib
 import matplotlib.pyplot as plt
 import cartopy
 import cartopy.crs as ccrs
@@ -37,7 +36,7 @@ else:
 
         ds.close()
 
-    df_segments.to_csv('data/'+file_name_4, index=False)
+    df_segments.to_csv(f'data/{file_name_4}.csv', index_label='ID')
 
 
 if plot_test:

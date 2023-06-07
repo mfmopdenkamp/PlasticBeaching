@@ -11,7 +11,7 @@ plot_things = False
 percentage = 100
 random_set = 1
 gps_only = True
-undrogued_only = True
+undrogued_only = False
 threshold_aprox_distance_km = 12
 start_date = None
 end_date = None
@@ -152,6 +152,7 @@ df.sort_values('time_start', inplace=True)
 
 # Save the dataframe to csv
 df.to_csv(f'data/df_supervised_{segment_length_h}h_{name}.csv', index_label='ID')
+print(f'Saved dataframe to data/df_supervised_{segment_length_h}h_{name}.csv')
 
 # %% Plotting
 if plot_things:

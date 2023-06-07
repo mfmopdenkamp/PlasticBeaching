@@ -153,8 +153,13 @@ def get_shoreline(resolution, points_only=False):
     :return:
     """
     if points_only:
-        gdf = get_shoreline(resolution)
-        gdf_shore = pickm.pickle_wrapper(f'shoreline_{resolution}_points', geometry2points, gdf)
+        pickle_name = f'shoreline_{resolution}_points'
+        try:
+            gdf = None
+            gdf_shore = pickm.pickle_wrapper(f'shoreline_{resolution}_points', geometry2points, gdf)
+        except:
+            gdf = get_shoreline(resolution)
+            gdf_shore = pickm.pickle_wrapper(f'shoreline_{resolution}_points', geometry2points, gdf)
     else:
         gdf_shore = pickm.pickle_wrapper(f'shoreline_{resolution}', gpd.read_file,
                                         f'{data_dir_name}gshhg-shp-2.3.7/GSHHS_shp/{resolution}/GSHHS_{resolution}_L1'

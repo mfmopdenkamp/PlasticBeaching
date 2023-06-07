@@ -85,9 +85,8 @@ def add_shore_features(gdf_seg, gdf_shore, gdf_cm, alphas, side_lengths):
 
             # - direction:
             i_nearest_shore_point = np.argmin(distances_shore_box)
-            index_point = gdf_shore_box.index[i_nearest_shore_point]
-            new_features['shortest_distance_n'][i_seg] = y_d - y_shore[index_point]
-            new_features['shortest_distance_e'][i_seg] = x_d - x_shore[index_point]
+            new_features['shortest_distance_n'][i_seg] = y_d - y_shore[i_nearest_shore_point]
+            new_features['shortest_distance_e'][i_seg] = x_d - x_shore[i_nearest_shore_point]
 
             # Follow similar logic for coastal geomorphology:
             # Get a box around the coordinate
@@ -134,8 +133,8 @@ def add_shore_features(gdf_seg, gdf_shore, gdf_cm, alphas, side_lengths):
     return new_features, no_near_shore_indexes
 
 
-df_seg = pd.read_csv('data/' + file_name_2, parse_dates=['time_start', 'time_end'], index_col='ID')
-gdf_shore = load_data.get_shoreline('f', points_only=True)
+df_seg = pd.read_csv(f'data/{file_name_2}.csv', parse_dates=['time_start', 'time_end'])
+gdf_shore = load_data.get_shoreline('i', points_only=True)
 gdf_cm = load_data.get_coastal_morphology(points_only=True)
 gdf_segments = tb.dataset2geopandas(df_seg['latitude_start'], df_seg['longitude_start'], gdf_shore)
 
@@ -168,8 +167,4 @@ for i, (de, dn, d, u, v) in enumerate(
 df_seg['inproduct_wind_nearest_shore'] = inproducts
 
 
-df_seg.to_csv('data/' + file_name_3, index_label='ID')
-
-
-
-
+df_seg.to_csv(f'data/{file_name_3}.csv', index_label='ID')

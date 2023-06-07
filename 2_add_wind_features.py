@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
+import tqdm
 from file_names import *
 
 df = pd.read_csv(f'data/{file_name_1}.csv',
@@ -26,7 +27,7 @@ v_std = np.zeros(n)
 
 
 prev_file_paths = []
-for i_event, subtraj in enumerate(df.itertuples()):
+for i_event, subtraj in tqdm(enumerate(df.itertuples())):
     times = pd.date_range(subtraj.time_start, subtraj.time_end, freq='H')
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
     file_paths = [prefix_era5_data+yymm+'.nc' for yymm in YYYYMM_keys]
@@ -70,4 +71,4 @@ df = df.assign(wind10m_abs_mean=abs_mean,
                wind10m_v_std=v_std
                )
 
-df.to_csv(f'data/{file_name_2}.csv')
+df.to_csv(f'data/{file_name_2}.csv', index=False)

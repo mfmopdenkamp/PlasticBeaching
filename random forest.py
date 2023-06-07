@@ -10,9 +10,9 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import scipy.stats as stats
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
+from file_names import *
 
-
-df = pd.read_csv('data/subtrajs_random_subset_5_2_gps_only_undrogued_only_wind2_tides.csv', parse_dates=['time_start', 'time_end'])
+df = pd.read_csv('data/'+file_name_4+'.csv', parse_dates=['time_start', 'time_end'])
 
 # normalize the data
 for column in df.columns:
