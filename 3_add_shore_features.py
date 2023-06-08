@@ -15,7 +15,7 @@ def get_score_label(base, alpha, side_length):
 
 
 # %% Calculate the amount of shore that is upwind
-def add_shore_features(gdf_seg, gdf_shore, gdf_cm, alphas, side_lengths):
+def add_shore_features(df_seg, gdf_seg, gdf_shore, gdf_cm, alphas, side_lengths):
     x_drifter = gdf_seg.geometry.x.values
     y_drifter = gdf_seg.geometry.y.values
 
@@ -127,16 +127,16 @@ def add_shore_features(gdf_seg, gdf_shore, gdf_cm, alphas, side_lengths):
         else:
             no_near_shore_indexes.append(i_seg)
 
-        if no_near_shore_indexes:
-            print(f'No near shore found for segments : {no_near_shore_indexes}')
+    if no_near_shore_indexes:
+        print(f'No near shore found for segments : {no_near_shore_indexes}')
 
     return new_features, no_near_shore_indexes
 
 
-df_seg = pd.read_csv(f'data/{file_name_2}.csv', parse_dates=['time_start', 'time_end'])
-gdf_shore = load_data.get_shoreline('i', points_only=True)
+df_seg2 = pd.read_csv(f'data/{file_name_2}.csv', parse_dates=['time_start', 'time_end'])
+gdf_shore = load_data.get_shoreline('f', points_only=True)
 gdf_cm = load_data.get_coastal_morphology(points_only=True)
-gdf_segments = tb.dataset2geopandas(df_seg['latitude_start'], df_seg['longitude_start'], gdf_shore)
+gdf_segments = tb.dataset2geopandas(df_seg2['latitude_start'], df_seg2['longitude_start'], gdf_shore)
 
 base_alpha = 45
 base_distance = 10000
@@ -145,26 +145,32 @@ distances = base_distance * np.sqrt(base_alpha / alphas)
 
 # Add full circles
 alphas = np.append(alphas, np.array([360, 360, 360, 360]))
+alphas *= np.pi / 180  # Convert to radians
 distances = np.append(distances, np.ones(4) * base_distance * [1, 3/4, 1/2, 1/4])
 
-features, no_near_shore_indexes = add_shore_features(gdf_segments, gdf_shore, gdf_cm, alphas, distances)
-df_seg = pd.concat([df_seg, features], axis=1)
+features, no_near_shore_indexes = add_shore_features(df_seg2, gdf_segments, gdf_shore, gdf_cm, alphas, distances)
+df_seg3 = pd.concat([df_seg2, pd.DataFrame.from_dict(features)], axis=1)
 
 # %% Drop segments where no shore was found (for some reason!!!)
-df_seg.drop(no_near_shore_indexes, inplace=True)
+df_seg3.drop(no_near_shore_indexes, inplace=True)
 
 print('Number of deleted segments because no shore was found: ', len(no_near_shore_indexes))
-print('Remaining number of beaching events:', df_seg['beaching_flags'].sum())
+print('Remaining number of beaching events:', df_seg3['beaching_flag'].sum())
 
 
 # %% Calculate the inner-product of the wind vector and the vector to the nearest shore
-inproducts = np.empty(len(df_seg))
+inproducts = np.empty(len(df_seg3))
 for i, (de, dn, d, u, v) in enumerate(
-        zip(df_seg['de'], df_seg['dn'], df_seg['distance_nearest_shore'], df_seg['wind10m_u_mean'],
-            df_seg['wind10m_v_mean'])):
+        zip(df_seg3['shortest_distance_e'], df_seg3['shortest_distance_n'], df_seg3['shortest_distance'], df_seg3['wind10m_u_mean'],
+            df_seg3['wind10m_v_mean'])):
     inproducts[i] = de / d * u + dn / d * v
 
-df_seg['inproduct_wind_nearest_shore'] = inproducts
+df_seg3['inproduct_wind_nearest_shore'] = inproducts
 
 
-df_seg.to_csv(f'data/{file_name_3}.csv', index_label='ID')
+df_seg3.to_csv(f'data/{file_name_3}.csv', index_label='ID')
+print(f'Features added to {file_name_3}.csv')
+
+# print the numpy dtypes of the arrays in the dict
+for key, value in features.items():
+    print(key, value.dtype, value.shape[0])

@@ -171,8 +171,13 @@ def get_shoreline(resolution, points_only=False):
 def get_coastal_morphology(points_only=False):
 
     if points_only:
-        gdf_cm = get_coastal_morphology()
-        gdf_cm = pickm.pickle_wrapper('coastal_morphology_points', geometry2points, gdf_cm)
+        pickle_name = 'coastal_morphology_points'
+        try:
+            gdf_cm = None
+            gdf_cm = pickm.pickle_wrapper('coastal_morphology_points', geometry2points, gdf_cm)
+        except:
+            gdf_cm = get_coastal_morphology()
+            gdf_cm = pickm.pickle_wrapper('coastal_morphology_points', geometry2points, gdf_cm)
     else:
         gdf_cm = pickm.pickle_wrapper('coastal_morphology', gpd.read_file,
                                       f'{data_dir_name}631485339c5c1bab_ECVGS2019_Q2903/631485339c5c1bab_ECVGS2019_Q2903/data/CoastalGeomorphology/CoastalGeomorphology.shp')

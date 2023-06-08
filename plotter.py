@@ -72,9 +72,6 @@ def plot_trajectories_death_type(ds, s=2):
     plt.show()
 
 
-
-
-
 def plot_galapagos_map_distances(ds, title=''):
     fig, ax = get_sophie_subplots(extent=(-92, -88.5, -1.75, 1), title=title)
     pcm = ax.scatter(ds.longitude, ds.latitude, transform=ccrs.PlateCarree(),
@@ -161,8 +158,9 @@ if __name__ == '__main__':
 
     ax = plt.axes(projection=ccrs.PlateCarree())
     for ID in gdp['ID'].unique():
-        ax.plot(gdp[gdp['ID'] == ID]['Longitude'], gdp[gdp['ID'] == ID]['Latitude'], transform=ccrs.PlateCarree())
-        break
+        if ID in [300234061407950]:
+            ax.plot(gdp[gdp['ID'] == ID]['Longitude'], gdp[gdp['ID'] == ID]['Latitude'], transform=ccrs.PlateCarree())
+
 
     ax.coastlines()
     plt.show()
