@@ -201,8 +201,10 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
 
 
 def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, threshold_aprox_distance_km=None,
-                start_date=None, end_date=None):
-    ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
+                start_date=None, end_date=None, ds=None):
+
+    if ds is None:
+        ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
 
     if start_date is not None:
         if isinstance(start_date, str):
@@ -251,7 +253,7 @@ if __name__ == '__main__':
 
     print('Loading hourly drifter data into Xarray..', end='')
     start = time.time()
-    ds = drifter_data_hourly()
+    ds_kaas = drifter_data_hourly()
     print(f'Done. Elapsed time = {time.time() - start}')
 
     # print('Load drifter metadata..', end='')

@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import pandas as pd
-
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+from cartopy.io.img_tiles import Stamen
 import load_data
 import numpy as np
 from tqdm import tqdm
@@ -13,8 +14,7 @@ death_type_colors = {0: 'r', 1: 'g', 2: 'b', 3: 'y', 4: 'c', 5: 'm', 6: 'aquamar
 def get_sophie_subplots(figsize=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
     """ This function sets up a figure (fig and ax) for plotting the data in the Galapagos region.
     This set-up contains a background terrain map of the Galapagos region, extending from lat (-2,1) and lon (-93, -88.5)"""
-    from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-    from cartopy.io.img_tiles import Stamen
+
 
     fig = plt.figure(figsize=figsize, dpi=300)
 
@@ -37,19 +37,26 @@ def get_sophie_subplots(figsize=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), tit
     return fig, ax
 
 
-def get_marc_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
+def get_marc_subplots(size=(12, 8), extent=(-180, 180, -85, 85), title=''):
     """ This function sets up a figure (fig and ax) for plotting the data in lonlatbox of the extent."""
 
     fig = plt.figure(figsize=size, dpi=300)
+
+    tiler = Stamen('terrain-background')
 
     ax = plt.axes(projection=ccrs.PlateCarree())
 
     ax.set_extent(extent, crs=ccrs.Geodetic())
 
+    zoom = 10  # trial and error number, too big, and things don't load, too small, and map is low resolution
+    ax.add_image(tiler, zoom)
+
     plt.title(title, fontsize=20)
 
-    # gl = ax.gridlines(draw_labels=True)
-    # gl.top_labels = gl.right_labels = False
+    ax.coastlines()
+
+    gl = ax.gridlines(draw_labels=True)
+    gl.top_labels = gl.right_labels = False
 
     return fig, ax
 

@@ -7,12 +7,13 @@ import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.utils import resample
 import scipy.stats as stats
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 from file_names import *
 
-df = pd.read_csv('data/'+file_name_4+'.csv', parse_dates=['time_start', 'time_end'])
+df = pd.read_csv(f'data/{file_name_4}.csv', parse_dates=['time_start', 'time_end'])
 
 # normalize the data
 for column in df.columns:
@@ -45,7 +46,27 @@ diki['pointbiserial_p'] = S_p
 x = df.drop(columns=[y_column, 'time_start', 'time_end'])
 y = df[y_column]
 
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.5, random_state=42, shuffle=False)
+
+def get_even_distribution(x_train, y_train):
+
+    count_true = sum(y_train)
+    count_false = len(y_train) - count_true
+
+    count_min = min(count_true, count_false)
+
+    x_true = x_train[y_train]
+    x_false = x_train[~y_train]
+
+    x_false_resampled = resample(x_false, n_samples=count_min, replace=False, random_state=42)
+
+    x_train_resampled = np.concatenate((x_true, x_false_resampled), axis=0)
+    y_train_resampled = np.concatenate((np.ones(count_min), np.zeros(count_min)), axis=0)
+
+    return x_train_resampled, y_train_resampled
+
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=42, shuffle=False)
+x_train_resampled, y_train_resampled = get_even_distribution(x_train, y_train)
 
 best_params_1 = {'max_depth': 5, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 50}
 param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 'max_depth':[None, 5, 10, 20],
@@ -58,7 +79,7 @@ param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 
 
 estimator = RandomForestClassifier(**best_params_1)
 
-estimator.fit(x_train, y_train)
+estimator.fit(x_train_resampled, y_train_resampled)
 
 y_pred = estimator.predict(x_test)
 
