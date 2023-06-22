@@ -200,8 +200,8 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
     return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
-def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, threshold_aprox_distance_km=None,
-                start_date=None, end_date=None, ds=None):
+def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, max_aprox_distance_km=None, start_date=None,
+                end_date=None, ds=None, min_aprox_distance_km=None):
 
     if ds is None:
         ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
@@ -237,10 +237,15 @@ def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, thres
         traj_undrogued = tb.traj_from_obs(ds, obs_undrogued)
         ds = ds.isel(obs=obs_undrogued, traj=traj_undrogued)
 
-    if threshold_aprox_distance_km is not None:
-        obs_close2shore = ds.obs[ds.aprox_distance_shoreline.values < threshold_aprox_distance_km]
+    if max_aprox_distance_km is not None:
+        obs_close2shore = ds.obs[ds.aprox_distance_shoreline.values < max_aprox_distance_km]
         traj_close2shore = tb.traj_from_obs(ds, obs_close2shore)
         ds = ds.isel(traj=traj_close2shore, obs=obs_close2shore)
+
+    if min_aprox_distance_km is not None:
+        obs_far2shore = ds.obs[ds.aprox_distance_shoreline.values > min_aprox_distance_km]
+        traj_far2shore = tb.traj_from_obs(ds, obs_far2shore)
+        ds = ds.isel(traj=traj_far2shore, obs=obs_far2shore)
 
     return ds
 

@@ -42,3 +42,16 @@ def pickle_wrapper(base_name, function, *args, **kwargs):
 
 def create_pickle_path(base_name):
     return pickle_folder_path / f'{base_name}.pkl'
+
+
+def create_pickle_ds_gdp_name(percentage=100, random_set=1, gps_only=False, undrogued_only=False,
+                            threshold_aprox_distance_km=None,
+                            start_date=None,
+                            end_date=None,
+                            ):
+    return f'ds_gdp_{percentage}%{(f"_{random_set}" if percentage < 100 else "")}' \
+           f'{("_" + str(start_date) if start_date is not None else "")}' \
+           f'{("_" + str(end_date) if end_date is not None else "")}' \
+           f'{("_gps" if gps_only else "")}' \
+           f'{("_undrogued" if undrogued_only else "")}' \
+           f'{("_" + str(threshold_aprox_distance_km) + "km" if threshold_aprox_distance_km is not None else "")}'
