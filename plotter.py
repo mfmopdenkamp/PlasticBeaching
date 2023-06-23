@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
-import pandas as pd
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from cartopy.io.img_tiles import Stamen
 import load_data
@@ -158,6 +159,35 @@ def plot_uniques_bar(ds_array, xlabel):
     ax.set_xticklabels(unique_values, rotation=45, ha="right")
     plt.tight_layout()
     plt.show()
+
+
+def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False, latitude=None,
+                        longitude=None, title=None, ax=None, crs=ccrs.PlateCarree()):
+    if ax is None:
+        fig = plt.figure(figsize=(14, 9), dpi=300)
+        ax = plt.axes(projection=crs)
+
+    ax.set_global()
+    ax.set_ylim(ylim)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    ax.coastlines()
+
+    gl = ax.gridlines(draw_labels=True)
+    gl.xformatter = LONGITUDE_FORMATTER
+    gl.yformatter = LATITUDE_FORMATTER
+    gl.top_labels = gl.right_labels = False
+
+    im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=colors.LogNorm(), transform=crs)
+    if scatter:
+        ax.scatter(longitude, latitude, s=0.1, color='b', alpha=0.5, transform=crs)
+    # Add a colorbar
+    cbar = plt.colorbar(im, ax=ax,
+                        ticks=[0, 1, 10, 100, 1000, 10000], format=ticker.ScalarFormatter(), shrink=0.6)
+    cbar.set_label('Density')
+
+    if title is not None:
+        ax.set_title(title)
 
 
 if __name__ == '__main__':

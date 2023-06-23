@@ -44,14 +44,22 @@ def create_pickle_path(base_name):
     return pickle_folder_path / f'{base_name}.pkl'
 
 
-def create_pickle_ds_gdp_name(percentage=100, random_set=1, gps_only=False, undrogued_only=False,
-                            threshold_aprox_distance_km=None,
-                            start_date=None,
-                            end_date=None,
-                            ):
+def create_pickle_ds_gdp_name(percentage=100, location_type=None, undrogued_only=None,
+                              threshold_aprox_distance_km=None, start_date=None, end_date=None,
+                              min_aprox_distance_km=None, type_death=None, random_set=1):
+
+    if isinstance(location_type, str):
+        if location_type[0] in ['A', 'a']:  # Argos
+            location_type = False
+        elif location_type[0] in ['G', 'g']:  # GPS
+            location_type = True
+
     return f'ds_gdp_{percentage}%{(f"_{random_set}" if percentage < 100 else "")}' \
            f'{("_" + str(start_date) if start_date is not None else "")}' \
            f'{("_" + str(end_date) if end_date is not None else "")}' \
-           f'{("_gps" if gps_only else "")}' \
+           f'{("_gps" if location_type else ("" if location_type is None else "_argos"))}' \
            f'{("_undrogued" if undrogued_only else "")}' \
-           f'{("_" + str(threshold_aprox_distance_km) + "km" if threshold_aprox_distance_km is not None else "")}'
+           f'{("__" + str(min_aprox_distance_km) + "km" if min_aprox_distance_km is not None else "")}' \
+           f'{("_" + str(threshold_aprox_distance_km) + "km" if threshold_aprox_distance_km is not None else "")}' \
+           f'{("_death" + str(type_death) if type_death is not None else "")}'
+

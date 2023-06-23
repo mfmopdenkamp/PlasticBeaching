@@ -11,7 +11,7 @@ plot_things = False
 percentage = 100
 random_set = 1
 gps_only = True
-undrogued_only = False
+drogued = False
 threshold_aprox_distance_km = 12
 start_date = None
 end_date = None
@@ -20,10 +20,10 @@ name = f'subset_{percentage}{(f"_{random_set}" if percentage < 100 else "")}'\
        f'{("_" + str(start_date) if start_date is not None else "")}' \
        f'{("_" + str(end_date) if end_date is not None else "")}' \
        f'{("_gps" if gps_only else "")}' \
-       f'{("_undrogued" if undrogued_only else "")}' \
+       f'{("_undrogued" if not drogued else ("drogued" if drogued else ""))}' \
        f'{("_" + str(threshold_aprox_distance_km) + "km" if threshold_aprox_distance_km is not None else "")}'
 
-ds_gdp = pickm.pickle_wrapper('ds_gdp_' + name, load_data.load_subset, percentage, gps_only, undrogued_only,
+ds_gdp = pickm.pickle_wrapper('ds_gdp_' + name, load_data.load_subset, percentage, gps_only, drogued,
                               threshold_aprox_distance_km, start_date, end_date)
 
 shoreline_resolution = 'f'

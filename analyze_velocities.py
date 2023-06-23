@@ -6,15 +6,10 @@ import toolbox as tb
 import picklemanager as pickm
 import matplotlib.pyplot as plt
 
-ds = load_data.get_ds_drifters('gdp_v2.00.nc_no_sst')
+ds = load_data.get_ds_drifters('gdp_v2.00.nc')
 
-traj_gps = np.where(ds.location_type.values)[0]
-obs_gps = tb.obs_from_traj(ds, traj_gps)
-ds_gps = ds.isel(traj=traj_gps, obs=obs_gps)
-
-traj_argos = np.where(np.invert(ds.location_type.values))[0]
-obs_argos = tb.obs_from_traj(ds, traj_argos)
-ds_argos = ds.isel(traj=traj_argos, obs=obs_argos)
+ds_gps = load_data.load_subset(location_type='gps', ds=ds)
+ds_argos = load_data.load_subset(location_type='argos', ds=ds)
 
 v_gps = tb.get_absolute_velocity(ds_gps)
 v_argos = tb.get_absolute_velocity(ds_argos)
@@ -34,14 +29,14 @@ print(f'Maximum velocity of GPS = {max_v_gps:.4f} m/s.')
 print(f'Maximum velocity of Argos = {max_v_argos:.4f} m/s.')
 
 #%%
-pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(gps_only=True, undrogued_only=True)
+pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, undrogued_only=True)
 ds_undrogued = pickm.load_pickle(pickm.create_pickle_path(pickle_name_undrogued))
 
 n_obs = len(ds_undrogued.obs)
 n_traj = len(ds_undrogued.traj)
 
-delta_km = 1
-max_km = 31
+delta_km = 0.2
+max_km = 10
 
 distances = np.flip(np.arange(delta_km, max_km, delta_km))
 trajs = np.zeros(len(distances))
@@ -50,7 +45,8 @@ obss = np.zeros(len(distances))
 velocities = np.zeros(len(distances))
 
 for i, distance in enumerate(distances):
-    ds = load_data.load_subset(max_aprox_distance_km=distance, min_aprox_distance_km=distance-delta_km, ds=ds_undrogued)
+    ds = load_data.load_subset(max_aprox_distance_km=distance, ds=ds_undrogued,
+                               min_aprox_distance_km=distance - delta_km)
 
     trajs[i] = len(ds.traj)
     obss[i] = len(ds.obs)

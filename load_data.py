@@ -200,52 +200,78 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
     return pickm.pickle_wrapper(filename, drifter_data_hourly, filename)
 
 
-def load_subset(traj_percentage=100, gps_only=False, undrogued_only=False, max_aprox_distance_km=None, start_date=None,
-                end_date=None, ds=None, min_aprox_distance_km=None):
+def load_subset(traj_percentage=100, location_type=None, drogued=None, max_aprox_distance_km=None, start_date=None,
+                end_date=None, ds=None, min_aprox_distance_km=None, type_death=None):
 
-    if ds is None:
-        ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
+    # check if pickle exists
+    pickle_path = pickm.create_pickle_path(
+        pickm.create_pickle_ds_gdp_name(traj_percentage, location_type, drogued, max_aprox_distance_km, start_date,
+                                        end_date, ds, min_aprox_distance_km, type_death))
+    try:
+        ds = pickm.load_pickle(pickle_path)
+    except FileNotFoundError:
 
-    if start_date is not None:
-        if isinstance(start_date, str):
-            start_date = pd.to_datetime(start_date)
-        obs_start = ds.obs[ds.time >= start_date]
-        traj_start = tb.traj_from_obs(ds, obs_start)
-        ds = ds.isel(obs=obs_start, traj=traj_start)
+        write_pickle = False
+        if ds is None:
+            ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
+            write_pickle = True
 
-    if end_date is not None:
-        if isinstance(end_date, str):
-            end_date = pd.to_datetime(end_date)
-        obs_end = ds.obs[ds.time <= end_date]
-        traj_end = tb.traj_from_obs(ds, obs_end)
-        ds = ds.isel(obs=obs_end, traj=traj_end)
+        if start_date is not None:
+            if isinstance(start_date, str):
+                start_date = pd.to_datetime(start_date)
+            obs_start = ds.obs[ds.time >= start_date]
+            traj_start = tb.traj_from_obs(ds, obs_start)
+            ds = ds.isel(obs=obs_start, traj=traj_start)
 
-    if traj_percentage < 100:
-        n = len(ds.traj)
-        size = int(n * traj_percentage / 100)
-        traj_random = np.random.choice(np.arange(len(ds.traj)), size=size, replace=False)
-        obs_random = tb.obs_from_traj(ds, traj_random)
-        ds = ds.isel(traj=traj_random, obs=obs_random)
+        if end_date is not None:
+            if isinstance(end_date, str):
+                end_date = pd.to_datetime(end_date)
+            obs_end = ds.obs[ds.time <= end_date]
+            traj_end = tb.traj_from_obs(ds, obs_end)
+            ds = ds.isel(obs=obs_end, traj=traj_end)
 
-    if gps_only:
-        traj_gps = np.where(ds.location_type.values)[0]
-        obs_gps = tb.obs_from_traj(ds, traj_gps)
-        ds = ds.isel(traj=traj_gps, obs=obs_gps)
+        if traj_percentage < 100:
+            n = len(ds.traj)
+            size = int(n * traj_percentage / 100)
+            traj_random = np.random.choice(np.arange(len(ds.traj)), size=size, replace=False)
+            obs_random = tb.obs_from_traj(ds, traj_random)
+            ds = ds.isel(traj=traj_random, obs=obs_random)
 
-    if undrogued_only:
-        obs_undrogued = ds.obs[~tb.get_drogue_presence(ds)]
-        traj_undrogued = tb.traj_from_obs(ds, obs_undrogued)
-        ds = ds.isel(obs=obs_undrogued, traj=traj_undrogued)
+        if location_type is not None:
+            if isinstance(location_type, str):
+                if location_type[0] in ['A', 'a']:  # Argos
+                    location_type = False
+                elif location_type[0] in ['G', 'g']:  # GPS
+                    location_type = True
+            traj_gps = np.where(ds.location_type.values == location_type)[0]
+            obs_gps = tb.obs_from_traj(ds, traj_gps)
+            ds = ds.isel(traj=traj_gps, obs=obs_gps)
 
-    if max_aprox_distance_km is not None:
-        obs_close2shore = ds.obs[ds.aprox_distance_shoreline.values < max_aprox_distance_km]
-        traj_close2shore = tb.traj_from_obs(ds, obs_close2shore)
-        ds = ds.isel(traj=traj_close2shore, obs=obs_close2shore)
+        if type_death is not None:
+            traj_death = ds.traj[ds.type_death.values == type_death]
+            obs_death = tb.obs_from_traj(ds, traj_death)
+            ds = ds.isel(traj=traj_death, obs=obs_death)
 
-    if min_aprox_distance_km is not None:
-        obs_far2shore = ds.obs[ds.aprox_distance_shoreline.values > min_aprox_distance_km]
-        traj_far2shore = tb.traj_from_obs(ds, obs_far2shore)
-        ds = ds.isel(traj=traj_far2shore, obs=obs_far2shore)
+        if drogued is not None:
+            if drogued:
+                obs_undrogued = ds.obs[tb.get_drogue_presence(ds)]
+            else:
+                obs_undrogued = ds.obs[~tb.get_drogue_presence(ds)]
+            traj_undrogued = tb.traj_from_obs(ds, obs_undrogued)
+            ds = ds.isel(obs=obs_undrogued, traj=traj_undrogued)
+
+        if max_aprox_distance_km is not None:
+            obs_close2shore = ds.obs[ds.aprox_distance_shoreline.values < max_aprox_distance_km]
+            traj_close2shore = tb.traj_from_obs(ds, obs_close2shore)
+            ds = ds.isel(traj=traj_close2shore, obs=obs_close2shore)
+
+        if min_aprox_distance_km is not None:
+            obs_far2shore = ds.obs[ds.aprox_distance_shoreline.values > min_aprox_distance_km]
+            traj_far2shore = tb.traj_from_obs(ds, obs_far2shore)
+            ds = ds.isel(traj=traj_far2shore, obs=obs_far2shore)
+
+        if write_pickle:
+            pickm.dump_pickle(pickle_path, ds)
 
     return ds
 

@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 import geopandas as gpd
 import math
 from tqdm import tqdm
-import time
-from scipy.interpolate import griddata
+import pandas as pd
 
 
 def end_date_2_years(ds_end_date):
@@ -34,25 +33,6 @@ def dataset2geopandas(lats, lons, df_shore):
                            crs='epsg:4326')
     gdf.to_crs(df_shore.crs, inplace=True)
     return gdf
-
-
-def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
-    # Drifter locations (longitude and latitude)
-    drifter_lon = ds_drifter.longitude.values
-    drifter_lat = ds_drifter.latitude.values
-
-    # Shore distances (longitude, latitude and distance to the shore)
-    raster_lon = df_raster.longitude.values
-    raster_lat = df_raster.latitude.values
-    raster_dist = df_raster.distance.values
-
-    # Interpolate the drifter locations onto the raster
-    start = time.time()
-    print('Started interpolation...', end='')
-    drifter_dist = griddata((raster_lon, raster_lat), raster_dist, (drifter_lon, drifter_lat), method=method)
-    print(f'Done. Elapsed time {np.round(time.time() - start, 2)}s')
-
-    return drifter_dist
 
 
 def find_shortest_distance(ds_gdp, gdf_shoreline):
@@ -291,3 +271,49 @@ def get_drogue_presence(ds):
             drogue_presence[obs_id] = np.where(times > drogue_lost_date, False, True)
 
     return drogue_presence
+
+
+def get_density_grid(latitude, longitude, xlim=None, ylim=None, latlon_box_size=2, lat_box_size=None, lon_box_size=None):
+    # filter lat lons on xlim and ylim
+    if xlim is not None:
+        xlim_mask = (longitude > xlim[0]) & (longitude < xlim[1])
+        latitude = latitude[xlim_mask]
+        longitude = longitude[xlim_mask]
+    if ylim is not None:
+        ylim_mask = (latitude > ylim[0]) & (latitude < ylim[1])
+        latitude = latitude[ylim_mask]
+        longitude = longitude[ylim_mask]
+
+    df = pd.DataFrame({'lat': latitude, 'lon': longitude})
+
+    if latlon_box_size is not None:
+        lat_box_size = latlon_box_size
+        lon_box_size = latlon_box_size
+
+    # Calculate the box indices for each coordinate
+    df['lat_box'] = ((df['lat'] + 90) // lat_box_size)
+    df['lon_box'] = ((df['lon'] + 180) // lon_box_size)
+
+    # reduce lon_box to 0-max_lat_box_id and lat_box to 0-max_lon_box_id for drifters exactly on 90N or 180E
+    df['lon_box'] = df['lon_box'] % int(360 / lon_box_size)
+    df['lat_box'] = df['lat_box'] % int(180 / lat_box_size)
+
+    # Group the coordinates by box indices and count the number of coordinates in each box
+    grouped = df.groupby(['lat_box', 'lon_box']).size().reset_index(name='count')
+
+    # Create an empty grid to store the density values
+    density_grid = np.zeros((int(180 / lat_box_size), int(360 / lon_box_size)))
+
+    # Fill the density grid with the count values
+    for _, row in grouped.iterrows():
+        i_lat_box = int(row['lat_box'])
+        i_lon_box = int(row['lon_box'])
+
+        count = row['count']
+        density_grid[i_lat_box, i_lon_box] = count
+
+    X, Y = np.meshgrid(np.arange(-180, 180, lon_box_size) + lon_box_size / 2,
+                       np.arange(-90, 90, lat_box_size) + lat_box_size / 2)
+
+    return X, Y, density_grid
+

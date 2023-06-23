@@ -87,7 +87,7 @@ def plot_global_density(latitude, longitude, lat_box_size=5, lon_box_size=5, yli
 gps_only = True
 undrogued_only = False
 
-name = picklemanager.create_pickle_ds_gdp_name(gps_only=gps_only, undrogued_only=undrogued_only)
+name = picklemanager.create_pickle_ds_gdp_name(location_type=gps_only, undrogued_only=undrogued_only)
 
 ds_gps = pickm.pickle_wrapper(name, load_data.load_subset, gps_only=gps_only, undrogued_only=undrogued_only, ds=ds)
 
