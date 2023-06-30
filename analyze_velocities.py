@@ -29,7 +29,7 @@ print(f'Maximum velocity of GPS = {max_v_gps:.4f} m/s.')
 print(f'Maximum velocity of Argos = {max_v_argos:.4f} m/s.')
 
 #%%
-pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, undrogued_only=True)
+pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, drogued=True)
 ds_undrogued = pickm.load_pickle(pickm.create_pickle_path(pickle_name_undrogued))
 
 n_obs = len(ds_undrogued.obs)

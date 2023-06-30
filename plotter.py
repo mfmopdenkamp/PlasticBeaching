@@ -135,6 +135,9 @@ def plot_death_type_bar(ds):
     ax.set_xlabel('death type')
     ax.set_ylabel('# drifters')
     plt.xticks(death_types)
+
+    plt.savefig('figures/death_type_bar.png', dpi=300, bbox_inches='tight')
+
     plt.show()
 
 

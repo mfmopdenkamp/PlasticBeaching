@@ -191,7 +191,7 @@ def get_bathymetry():
                                 f'{data_dir_name}gebco_2022_sub_ice_topo/{filename_gebco}')
 
 
-def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_distances=False):
+def get_ds_drifters(filename='gdp_v2.00.nc_no_sst', proximity_of_coast=None, with_distances=False):
     if with_distances:
         return pickm.load_pickle(f'pickledumps/ds_gdp_subset_{proximity_of_coast}km_distances.pkl')
     if proximity_of_coast is not None:
@@ -203,18 +203,8 @@ def get_ds_drifters(filename='gdp_v2.00.nc', proximity_of_coast=None, with_dista
 def load_subset(traj_percentage=100, location_type=None, drogued=None, max_aprox_distance_km=None, start_date=None,
                 end_date=None, ds=None, min_aprox_distance_km=None, type_death=None):
 
-    # check if pickle exists
-    pickle_path = pickm.create_pickle_path(
-        pickm.create_pickle_ds_gdp_name(traj_percentage, location_type, drogued, max_aprox_distance_km, start_date,
-                                        end_date, ds, min_aprox_distance_km, type_death))
-    try:
-        ds = pickm.load_pickle(pickle_path)
-    except FileNotFoundError:
-
-        write_pickle = False
         if ds is None:
             ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
-            write_pickle = True
 
         if start_date is not None:
             if isinstance(start_date, str):
@@ -270,10 +260,7 @@ def load_subset(traj_percentage=100, location_type=None, drogued=None, max_aprox
             traj_far2shore = tb.traj_from_obs(ds, obs_far2shore)
             ds = ds.isel(traj=traj_far2shore, obs=obs_far2shore)
 
-        if write_pickle:
-            pickm.dump_pickle(pickle_path, ds)
-
-    return ds
+        return ds
 
 
 if __name__ == '__main__':

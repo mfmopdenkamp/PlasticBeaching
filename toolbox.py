@@ -256,21 +256,32 @@ def probability_distance_sophie(ds, verbose=True):
         plt.show()
 
 
-def get_drogue_presence(ds):
+def get_drogue_presence(ds, coords=False):
     obs = ds.obs.values
     drogue_lost_dates = ds.drogue_lost_date.values
 
     ids = ds.ids.values
     IDs = ds.ID.values
     drogue_presence = np.ones(len(obs), dtype=bool)
-    for (drogue_lost_date, ID) in zip(drogue_lost_dates, IDs):
+    if coords:
+        latitude = ds.latitude.values
+        longitude = ds.longitude.values
+        lats = np.zeros(len(ds.traj), dtype=np.float32)
+        lons = np.zeros(len(ds.traj), dtype=np.float32)
+    for i, (drogue_lost_date, ID) in enumerate(zip(drogue_lost_dates, IDs)):
         # if drogue lost date is not known, assume it is always present
         if not np.isnat(drogue_lost_date):
             obs_id = obs[ids == ID]
             times = ds.time.values[obs_id]
             drogue_presence[obs_id] = np.where(times > drogue_lost_date, False, True)
+            if coords:
+                lats[i] = latitude[obs_id[-1]]
+                lons[i] = longitude[obs_id[-1]]
 
-    return drogue_presence
+    if not coords:
+        return drogue_presence
+    else:
+        return drogue_presence, lats, lons
 
 
 def get_density_grid(latitude, longitude, xlim=None, ylim=None, latlon_box_size=2, lat_box_size=None, lon_box_size=None):

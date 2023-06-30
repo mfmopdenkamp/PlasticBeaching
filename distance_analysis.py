@@ -3,7 +3,7 @@ import picklemanager as pickm
 import numpy as np
 import matplotlib.pyplot as plt
 
-pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, undrogued_only=True)
+pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, drogued=True)
 ds_prev = pickm.load_pickle(pickm.create_pickle_path(pickle_name_undrogued))
 
 n_obs = len(ds_prev.obs)

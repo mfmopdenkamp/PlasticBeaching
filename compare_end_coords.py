@@ -9,11 +9,12 @@ import cartopy.crs as ccrs
 crs = ccrs.PlateCarree()
 
 ds = load_data.load_subset(type_death=1)
-ds_gps = load_data.load_subset(type_death=1, location_type='gps')
+ds_gps = load_data.load_subset(location_type='gps', ds=ds)
 df = pd.read_csv(f'data/{file_name_1}.csv', parse_dates=['time_start', 'time_end'])
 
-print(np.unique(ds.type_death.values))
 #%%
+print(f'Number of trajectories with death type 1: {len(ds.ids)}')
+print(f'Number of trajectories with death type 1 and gps: {len(ds_gps.ids)}')
 
 ylim= [-88, 88]
 xlim=None
