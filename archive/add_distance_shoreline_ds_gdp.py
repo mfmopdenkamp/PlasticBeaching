@@ -6,7 +6,10 @@ from scipy.interpolate import griddata
 import numpy as np
 
 
-def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
+def interpolate_drifter_location(ds_drifter, method='linear'):
+
+    df_raster = load_data.get_raster_distance_to_shore_04deg()
+
     # Drifter locations (longitude and latitude)
     drifter_lon = ds_drifter.longitude.values
     drifter_lat = ds_drifter.latitude.values
@@ -26,17 +29,16 @@ def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
 
 
 def add_interpol(ds, method='nearest'):
-    df_raster = load_data.get_raster_distance_to_shore_04deg()
 
     ds['aprox_distance_shoreline'] = xr.DataArray(
-        data=interpolate_drifter_location(df_raster, ds, method=method),
+        data=interpolate_drifter_location(ds, method=method),
         dims='obs',
-        attrs={'long_name': 'Approximate distance to shoreline by interpolation onto 0.04deg raster',
+        attrs={'long_name': f'Approximate distance to shoreline by {method} interpolation onto 0.04deg raster',
                'units': 'km'})
     return ds
 
 
-ds = load_data.get_ds_drifters(filename='gdp_v2.00.nc')
+ds = load_data.get_ds_drifters()
 method = 'linear'
 pickle_name = 'gdp_v2.00.nc_approx_dist_' + method
 ds = pickm.pickle_wrapper(pickle_name, add_interpol, ds, method=method)

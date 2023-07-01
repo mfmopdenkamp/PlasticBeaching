@@ -4,12 +4,12 @@ import toolbox as tb
 import xarray as xr
 import picklemanager as pickm
 
-ds = load_data.get_ds_drifters()
+ds = load_data.load_subset()
 
 drogue_presence, lats, lons = tb.get_drogue_presence(ds, coords=True)
 
 ds['drogue_presence'] = xr.DataArray(
-        data=tb.get_drogue_presence(ds),
+        data=drogue_presence,
         dims='obs',
         attrs={'long_name': 'Boolean indication the presence of a drogue',
                'units': '-'})

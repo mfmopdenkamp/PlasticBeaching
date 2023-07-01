@@ -201,10 +201,10 @@ def get_ds_drifters(filename='gdp_v2.00.nc_no_sst', proximity_of_coast=None, wit
 
 
 def load_subset(traj_percentage=100, location_type=None, drogued=None, max_aprox_distance_km=None, start_date=None,
-                end_date=None, ds=None, min_aprox_distance_km=None, type_death=None):
+                end_date=None, ds=None, min_aprox_distance_km=None, type_death=None, ds_name='gdp_v2.00.nc_no_sst'):
 
         if ds is None:
-            ds = get_ds_drifters('gdp_v2.00.nc_no_sst')
+            ds = get_ds_drifters(ds_name)
 
         if start_date is not None:
             if isinstance(start_date, str):

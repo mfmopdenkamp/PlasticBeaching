@@ -10,15 +10,15 @@ import plotter
 
 
 type_death = 1
-ds = pickm.load_pickle(pickm.create_pickle_path('gdp_drogue_presence'))
-ds = load_data.load_subset(type_death=type_death, ds=ds)
+pickle_name = pickm.create_pickle_ds_gdp_name(type_death=type_death)
+ds = pickm.pickle_wrapper(pickle_name, load_data.load_subset, type_death=type_death, ds_name='gdp_drogue_presence')
 
 
 # In[11]:
 percentage = 100
 ylim = [-88, 88]
 xlim = None
-latlon_box_size = 1
+latlon_box_size = 2
 crs = ccrs.PlateCarree()
 
 fig, axs = plt.subplots(3, 1, figsize=(14, 9), dpi=300)
@@ -67,11 +67,11 @@ pickle_name_undrogued = pickm.create_pickle_path(f'density_end_{percentage}_{lat
 try:
     (X, Y, density_grid) = pickm.load_pickle(pickle_name_undrogued)
 except FileNotFoundError:
-    X, Y, density_grid = tb.get_density_grid(ds.lat_end.values, ds.lon_end.values, xlim=xlim,
+    X, Y, density_grid = tb.get_density_grid(ds.end_lat.values, ds.end_lon.values, xlim=xlim,
                                              ylim=ylim, latlon_box_size=latlon_box_size)
     pickm.dump_pickle((X, Y, density_grid), pickle_name_undrogued)
 
-plotter.plot_global_density(X, Y, density_grid, ylim=ylim, title='Undrogued',
+plotter.plot_global_density(X, Y, density_grid, ylim=ylim, title='Grounded', crs=ccrs.PlateCarree(),
                             ax=fig.add_subplot(3, 1, 3, projection=crs))
 
 plt.savefig(f'figures/density_deploy_lost_beach_deathtype_{type_death}_{percentage}_{latlon_box_size}.png', dpi=300)

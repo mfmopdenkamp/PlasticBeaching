@@ -3,43 +3,26 @@ import picklemanager as pickm
 import numpy as np
 import tqdm
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 
-
-ds = load_data.get_ds_drifters()
-pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(drogued=False)
-ds_undrogued = pickm.pickle_wrapper(pickle_name_undrogued, load_data.load_subset, drogued=False, ds=ds)
-
-pickle_name_drogued = pickm.create_pickle_ds_gdp_name(drogued=True)
-ds_drogued = pickm.pickle_wrapper(pickle_name_drogued, load_data.load_subset, drogued=True, ds=ds)
-
-n_obs_undrogued = len(ds_undrogued.obs.values)
-n_obs_drogued = len(ds_drogued.obs.values)
-percentage_obs_undrogued = n_obs_undrogued / (n_obs_drogued + n_obs_undrogued) * 100
-
-n_traj_undrogued = len(ds_undrogued.traj.values)
-n_traj_drogued = len(ds_drogued.traj.values)
-percentage_traj_undrogued = n_traj_undrogued / (n_traj_drogued + n_traj_undrogued) * 100
-
-
+ds = pickm.load_pickle(pickm.create_pickle_path('gdp_drogue_presence'))
+print(ds.info())
 #%%
-# Precompute ids arrays
-undrogued_ids = ds_undrogued.ids.values
-drogued_ids = ds_drogued.ids.values
+n_obs_drogued = ds.drogue_presence.values.sum()
+n_obs_undrogued = len(ds.obs) - n_obs_drogued
+percentage_obs_undrogued = n_obs_undrogued / len(ds.obs) * 100
 
+traj_undrogued_hours = np.zeros(len(ds.ID.values))
+traj_idx = np.insert(np.cumsum(ds.rowsize.values), 0, 0)
+undrogue_presence = np.invert(ds.drogue_presence.values)
+for j in tqdm.tqdm(ds.traj.values):
+    traj_undrogued_hours[j] = undrogue_presence[slice(traj_idx[j], traj_idx[j + 1])].sum()
 
-n_obs_drogued_d = np.zeros(len(ds.ID.values))
-n_obs_undrogued_d = np.zeros(len(ds.ID.values))
-for i, drifter_id in enumerate(tqdm.tqdm(ds.ID.values)):
-    # Count occurrences of drifter_id in undrogued and drogued ids arrays
-    n_obs_undrogued_d[i] = np.sum(undrogued_ids == drifter_id)
-    n_obs_drogued_d[i] = np.sum(drogued_ids == drifter_id)
-
+drifter_lost_drogue = traj_undrogued_hours > 0
+percentage_traj_lost_drogue = drifter_lost_drogue.sum() / len(ds.traj) * 100
 # Calculate percentage of undrogued observations
-percentage_undrogued_drifter = n_obs_undrogued_d / (n_obs_drogued_d + n_obs_undrogued_d) * 100
+percentage_undrogued_obs_per_drifter = traj_undrogued_hours / ds.rowsize.values * 100
 
-pickm.dump_pickle(percentage_undrogued_drifter, pickm.create_pickle_path('percentage_undrogued_drifter'))
-pickm.dump_pickle(n_obs_undrogued_d, pickm.create_pickle_path('n_obs_undrogued_d'))
-pickm.dump_pickle(n_obs_drogued_d, pickm.create_pickle_path('n_obs_drogued_d'))
 
 #%% Plot trajectory length histogram
 bins=300
@@ -58,39 +41,34 @@ print('Min length of trajectory: ', np.min(ds.rowsize.values/24))
 
 #%% Plot histogram of percentage of undrogued observations per drifter
 plt.figure(figsize=(10, 6))
-plt.hist(percentage_undrogued_drifter, bins=100)
-plt.xlabel('fraction of undrogued observations [%]')
+plt.hist(percentage_undrogued_obs_per_drifter, bins=100)
+plt.xlabel('fraction undrogued [%]')
 plt.ylabel('number of drifters')
 
 plt.yscale('log')
 
-plt.savefig(f'figures/percentage_undrogued_histogram.png', dpi=300)
+plt.savefig(f'figures/fraction_undrogued_histogram.png', dpi=300)
 
 plt.show()
 
 #%% Plot percentage of undrogued observations per drifter vs length of trajectory in heat map
-percentage_undrogued = percentage_undrogued_drifter
-
 # Compute the 2D histogram counts
-hist, x_edges, y_edges = np.histogram2d(ds.rowsize.values/24, percentage_undrogued, bins=[100, 100],
-                                        range=[[0, 1500], [0, 100]])
+hist, x_edges, y_edges = np.histogram2d(ds.rowsize.values / 24, percentage_undrogued_obs_per_drifter, bins=[100, 100])
 
 # Create a grid of x and y values
 x, y = np.meshgrid(x_edges, y_edges)
 
-# Set the maximum value for the color scale and capped values
-vmax = 20
-capped_value = "> " + str(vmax)
-
 # Plot the 2D histogram as a heat map
 plt.figure(figsize=(10, 6))
-plt.pcolormesh(x, y, hist.T, cmap='hot_r', vmax=vmax)
+plt.pcolormesh(x, y, hist.T, cmap='hot_r', norm=colors.LogNorm())
 plt.colorbar(label='Count')
-plt.xlabel('trajectory length (hours)')
-plt.ylabel('trajectory fraction undrogued (%)')
+plt.xlabel('trajectory length (days)')
+plt.ylabel('undrogued trajectory fraction (%)')
 
+# plt.xscale('log', base=10)
+
+plt.savefig('figures/portion_undrogued_vs_length_heatmap.png', dpi=300)
 plt.show()
-
 
 #%%
 
@@ -110,15 +88,17 @@ n_traj_total = len(ds.traj)
 n_obs_total = len(ds.obs)
 obs_per_traj = n_obs_total / n_traj_total
 
-n_obs_gps = len(ds_gps.obs)
-n_traj_gps = len(ds_gps.traj)
-n_obs_gps_undrogued = len(ds_gps_undrogued.obs)
-n_traj_gps_undrogued = len(ds_gps_undrogued.traj)
 
-percentage_undrogued_obs = n_obs_gps_undrogued / n_obs_gps * 100
-percentage_undrogued_traj = n_traj_gps_undrogued / n_traj_gps * 100
+n_traj_gps = ds.location_type.values.sum()
+n_obs_gps = ds.rowsize.values[ds.location_type.values].sum()
 
-n_obs_gps_undrogued_12km = len(ds_gps_undrogued_12km.obs)
+n_traj_gps_undrogued = np.sum(ds.location_type.values & drifter_lost_drogue)
+n_obs_gps_undrogued = ds.rowsize.values[ds.location_type.values & drifter_lost_drogue].sum()
+
+percentage_gps_undrogued_obs = n_obs_gps_undrogued / n_obs_gps * 100
+percentage_gps_undrogued_traj = n_traj_gps_undrogued / n_traj_gps * 100
+
+n_obs_gps_undrogued_12km = np.sum(ds.aprox_distance_shoreline.values < 12)
 n_traj_gps_undrogued_12km = len(ds_gps_undrogued_12km.traj)
 
 percentage_undrogued_obs_12km = n_obs_gps_undrogued_12km / n_obs_gps_undrogued * 100

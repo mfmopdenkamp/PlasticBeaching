@@ -257,26 +257,31 @@ def probability_distance_sophie(ds, verbose=True):
 
 
 def get_drogue_presence(ds, coords=False):
+    # only works for full dataset where rowsize is true!
+
     obs = ds.obs.values
     drogue_lost_dates = ds.drogue_lost_date.values
 
     ids = ds.ids.values
-    IDs = ds.ID.values
     drogue_presence = np.ones(len(obs), dtype=bool)
     if coords:
         latitude = ds.latitude.values
         longitude = ds.longitude.values
         lats = np.zeros(len(ds.traj), dtype=np.float32)
         lons = np.zeros(len(ds.traj), dtype=np.float32)
-    for i, (drogue_lost_date, ID) in enumerate(zip(drogue_lost_dates, IDs)):
+
+    traj_idx = np.insert(np.cumsum(ds.rowsize.values), 0, 0)
+    for i, (drogue_lost_date) in enumerate(tqdm(drogue_lost_dates)):
         # if drogue lost date is not known, assume it is always present
         if not np.isnat(drogue_lost_date):
-            obs_id = obs[ids == ID]
+            obs_id = obs[slice(traj_idx[i], traj_idx[i + 1])]
             times = ds.time.values[obs_id]
-            drogue_presence[obs_id] = np.where(times > drogue_lost_date, False, True)
+            mask = times < drogue_lost_date
+            drogue_presence[obs_id] = mask
             if coords:
-                lats[i] = latitude[obs_id[-1]]
-                lons[i] = longitude[obs_id[-1]]
+                obs_change = obs_id[np.argmin(np.diff(mask))] + 1
+                lats[i] = latitude[obs_change]
+                lons[i] = longitude[obs_change]
 
     if not coords:
         return drogue_presence
