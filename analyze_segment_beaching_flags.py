@@ -1,4 +1,4 @@
-from file_names import *
+from file_names import file_name_4
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,15 +14,13 @@ table_beaching_per_drifter.plot(kind='bar', stacked=True, figsize=(15, 5), title
                                 align='edge', width=1)
 plt.legend()
 plt.xlabel('Drifters')
-plt.ylabel('Number of true and false beaching flags')
+plt.ylabel('Number of trajectory segments with true and false beaching flags')
 
 ax = plt.gca()
 
 # Clear the major ticks and tick labels
 ax.set_xticks([])
-ax.set_yticks([])
 ax.set_xticklabels([])
-ax.set_yticklabels([])
 
 plt.savefig('figures/number_of_segments_per_drifter_stacked.png', dpi=300)
 plt.show()
