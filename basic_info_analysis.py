@@ -67,7 +67,7 @@ plt.ylabel('undrogued trajectory fraction (%)')
 
 # plt.xscale('log', base=10)
 
-plt.savefig('figures/portion_undrogued_vs_length_heatmap.png', dpi=300)
+plt.savefig('figures/fraction_undrogued_vs_length_heatmap.png', dpi=300)
 plt.show()
 
 #%%
@@ -88,12 +88,16 @@ n_traj_total = len(ds.traj)
 n_obs_total = len(ds.obs)
 obs_per_traj = n_obs_total / n_traj_total
 
-
 n_traj_gps = ds.location_type.values.sum()
 n_obs_gps = ds.rowsize.values[ds.location_type.values].sum()
 
-n_traj_gps_undrogued = np.sum(ds.location_type.values & drifter_lost_drogue)
-n_obs_gps_undrogued = ds.rowsize.values[ds.location_type.values & drifter_lost_drogue].sum()
+mask_gps_undrogued = ds.location_type.values & drifter_lost_drogue
+n_traj_gps_undrogued = np.sum(mask_gps_undrogued)
+
+n_obs_gps_undrogued = 0
+traj_idk = np.insert(np.cumsum(ds.rowsize.values[mask_gps_undrogued]), 0, 0)
+for j in ds.traj.values[mask_gps_undrogued]:
+    n_obs_gps_undrogued += np.invert(ds.drogue_presence[slice(traj_idk[j], traj_idk[j + 1])]).sum()
 
 percentage_gps_undrogued_obs = n_obs_gps_undrogued / n_obs_gps * 100
 percentage_gps_undrogued_traj = n_traj_gps_undrogued / n_traj_gps * 100

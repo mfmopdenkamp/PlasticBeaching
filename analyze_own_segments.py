@@ -6,16 +6,25 @@ import matplotlib.pyplot as plt
 
 df = pd.read_csv(file_name_4, parse_dates=['time_start', 'time_end'], index_col='ID')
 table_beaching_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts().unstack().fillna(0).astype(int)
+# sort the table descending from most to least false beaching flags
+table_beaching_per_drifter.sort_values(by=False, ascending=False, inplace=True)
 
-# depict how represetated each drifter is in the dataset for a true and false beaching flag by a stacked bar plot
-table_beaching_per_drifter.plot(kind='bar', stacked=True, figsize=(15, 5), title='Number of segments per drifter')
+#%% depict how represetated each drifter is in the dataset for a true and false beaching flag by a stacked bar plot
+table_beaching_per_drifter.plot(kind='bar', stacked=True, figsize=(15, 5), title='Number of segments per drifter',
+                                align='edge', width=1)
 plt.legend()
-plt.xlabel('Drifter ID')
-plt.ylabel('Number of segments')
-plt.savefig('figures/number_of_segments_per_drifter_stacked.png', dpi=300)
-plt.show()
+plt.xlabel('Drifters')
+plt.ylabel('Number of true and false beaching flags')
 
-plt.savefig('figures/number_of_segments_per_drifter.png', dpi=300)
+ax = plt.gca()
+
+# Clear the major ticks and tick labels
+ax.set_xticks([])
+ax.set_yticks([])
+ax.set_xticklabels([])
+ax.set_yticklabels([])
+
+plt.savefig('figures/number_of_segments_per_drifter_stacked.png', dpi=300)
 plt.show()
 
 print(f'Number of unique drifters: {len(df.drifter_id.unique())}')
@@ -74,13 +83,5 @@ ax.set_yticklabels([])
 
 # Display the plot
 plt.savefig('figures/2d_histogram_beaching_per_drifter.png', dpi=300)
-plt.show()
-2#%% scatter plot
-df.groupby('drifter_id').beaching_flag.value_counts().unstack().plot(kind='scatter', x=True, y=False, figsize=(5, 4),
-                                                                        alpha=0.5,
-                                                                        title='Number of true vs false beaching flags per drifter')
-plt.xlabel('Number of true beaching flags')
-plt.ylabel('Number of false beaching flags')
-plt.savefig('figures/number_of_true_vs_false_beaching_flags_per_drifter.png', dpi=300)
 plt.show()
 
