@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import toolbox as tb
 
 df = pd.read_csv(file_name_4, parse_dates=['time_start', 'time_end'], index_col='ID')
-shore_score_thresholds = np.arange(0, 1.1, 0.02)
+delta_score = 0.02
+shore_score_thresholds = np.arange(0, 1+delta_score, delta_score)
 
 #%% filter out drifters with less more than 15 false beaching flags and more than 6 true beaching flags
 table_beaching_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts().unstack().fillna(0).astype(int)
@@ -37,13 +38,10 @@ def plot_360(c_names, beaching_probs, title='', ax=None):
         fig, ax = plt.subplots(figsize=(7, 5))
     for col in c_names:
         if col == 'all':
-            plt.plot(shore_score_thresholds, beaching_probs[col], 'ko-', label=col.split('_')[-1])
+            ax.plot(shore_score_thresholds, beaching_probs[col], 'ko-', label=col.split('_')[-1])
         else:
-            plt.plot(shore_score_thresholds, beaching_probs[col], 'o-', label=col.split('_')[-1])
+            ax.plot(shore_score_thresholds, beaching_probs[col], 'o-', label=col.split('_')[-1])
 
-    ax.legend(title='radius')
-    ax.set_xlabel('normalized score threshold')
-    ax.set_ylabel('beaching probability')
     ax.set_title(title)
     ax.grid()
 
@@ -53,40 +51,50 @@ def plot_wind(c_names, beaching_probs, title='', ax=None):
         fig, ax = plt.subplots(figsize=(7, 5))
     for col in c_names:
         if col == 'all':
-            plt.plot(shore_score_thresholds, beaching_probs[col], 'ko-', label=col.split('_')[-1])
-        elif col == 'score_shore_270deg_4km':
-            plt.plot(shore_score_thresholds, beaching_probs[col], 'o-', c='cyan', label=col.split('_')[-2]+'_'+col.split('_')[-1])
+            ax.plot(shore_score_thresholds, beaching_probs[col], 'ko-', label=col.split('_')[-1])
+        elif col.split('_')[-1] == '4km':
+            ax.plot(shore_score_thresholds, beaching_probs[col], 'o-', c='cyan', label=col.split('_')[-2]+'_'+col.split('_')[-1])
         else:
-            plt.plot(shore_score_thresholds, beaching_probs[col], 'o-', label=col.split('_')[-2]+'_'+col.split('_')[-1])
+            ax.plot(shore_score_thresholds, beaching_probs[col], 'o-', label=col.split('_')[-2]+'_'+col.split('_')[-1])
 
-    ax.legend(title='radius')
-    ax.set_xlabel('normalized score threshold')
-    ax.set_ylabel('beaching probability')
+
     ax.set_title(title)
     ax.grid()
 
 
 #%%
+fig, axs = plt.subplots(4, 2, figsize=(10, 15), sharex=True, sharey=True)
 
-fig, axs = plt.figure(figsize=(20, 10), sharex='col')
 
-i = 1
 types = ['shore', 'beach', 'bedrock', 'wetland']
-for type in types:
+for j, type in enumerate(types):
     column_names = [f'score_{type}_360deg_10km', f'score_{type}_360deg_8km', f'score_{type}_360deg_5km', f'score_{type}_360deg_2km']
-    beaching_probs_shore = tb.get_probabilities(df, column_names=column_names)
+    beaching_probs_shore = tb.get_probabilities(df, column_names=column_names, score_thresholds=shore_score_thresholds)
+    i = 0
+    plot_360(column_names, beaching_probs_shore, title=('within circle' if j==0 else ''), ax=axs[j, i])
 
-    ax = axs[i // 2, i % 2]
-    plot_360(column_names, beaching_probs_shore, title='360deg '+type, ax=ax)
+    if j == 0:
+        axs[j, i].legend(title='radius')
+    elif j == 3:
+        axs[j, i].set_xlabel('normalized score threshold')
+    axs[j, i].set_ylabel(fr'$\mathbf{{{type}}}$')
+                         # + '\nbeaching probability')
 
-    i += 1
     column_names = [f'score_{type}_22deg_14km', f'score_{type}_45deg_10km', f'score_{type}_60deg_9km', f'score_{type}_180deg_5km',
                     f'score_{type}_270deg_4km']
-    beaching_probs_shore = tb.get_probabilities(df, column_names=column_names)
+    beaching_probs_shore = tb.get_probabilities(df, column_names=column_names, score_thresholds=shore_score_thresholds)
+    i = 1
+    plot_wind(column_names, beaching_probs_shore, title=('within circle slice' if j==0 else ''), ax=axs[j, i])
 
-    ax = axs[i // 2, i % 2]
-    plot_wind(column_names, beaching_probs_shore, title='wind '+type, ax=ax)
-    i += 1
+    if i == 0:
+        axs[j, i].set_ylabel('beaching probability')
+    if j == 0:
+        axs[j, i].legend(title='radius')
+    elif j == 3:
+        axs[j, i].set_xlabel('normalized score threshold')
 
+# Set the common y-label for the entire figure
+fig.text(0, 0.5, 'beaching probability', va='center', rotation='vertical')
+plt.tight_layout()
 plt.savefig('figures/grounding_prob_vs_score_threshold.png', dpi=300)
 plt.show()
