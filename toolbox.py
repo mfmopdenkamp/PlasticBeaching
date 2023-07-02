@@ -333,3 +333,20 @@ def get_density_grid(latitude, longitude, xlim=None, ylim=None, latlon_box_size=
 
     return X, Y, density_grid
 
+
+def get_probabilities(df, column_names, score_thresholds=np.arange(0, 1.1, 0.02)):
+    n = df.shape[0]
+    df['all'] = np.zeros(n)
+    for column in column_names:
+        df['all'] += df[column]
+    column_names.insert(0, 'all')
+
+    grounding_prob = {}
+    for column in column_names:
+        df[column] = df[column] / df[column].max()
+        grounding_prob[column] = np.zeros(len(score_thresholds))
+        for i, score_threshold in enumerate(score_thresholds):
+            df_filtered = df[df[column] >= score_threshold]
+            grounding_prob[column][i] = df_filtered.beaching_flag.mean()
+
+    return grounding_prob
