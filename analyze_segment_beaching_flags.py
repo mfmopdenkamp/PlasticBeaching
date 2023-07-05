@@ -9,7 +9,7 @@ table_beaching_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts
 # sort the table descending from most to least false beaching flags
 table_beaching_per_drifter.sort_values(by=False, ascending=False, inplace=True)
 
-#%% depict how represetated each drifter is in the dataset for a true and false beaching flag by a stacked bar plot
+#%% depict how represented each drifter is in the dataset for a true and false beaching flag by a stacked bar plot
 table_beaching_per_drifter.plot(kind='bar', stacked=True, figsize=(15, 5), title='Number of segments per drifter',
                                 align='edge', width=1)
 plt.legend()

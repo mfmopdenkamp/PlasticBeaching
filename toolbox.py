@@ -6,6 +6,23 @@ from tqdm import tqdm
 import pandas as pd
 
 
+colors = [
+        (0, 0, 0),              # black
+        (0, 0.147, 0.698),    # blue
+        (0.902, 0.624, 0),  # gold
+        (0.875, 0.088, 0.012),  # red
+        (0.002, 0.586, 0.09),   # green
+        (0.016, 0.494, 0.822),  # sky blue
+        (0.596, 0.306, 0.639),  # purple
+        (1, 0.498, 0.3),          # orange
+        (0.659, 0.439, 0.204),  # brown
+        (0.337, 0.337, 0.337),  # gray
+    ]
+
+
+markers = ['o', 'v', 's', 'D', 'P', 'X', 'd', 'p', 'h', '8']
+
+
 def end_date_2_years(ds_end_date):
     return ds_end_date.values.astype('datetime64[Y]').astype(int) + 1970
 
@@ -334,7 +351,17 @@ def get_density_grid(latitude, longitude, xlim=None, ylim=None, latlon_box_size=
     return X, Y, density_grid
 
 
-def get_probabilities(df, column_names, score_thresholds):
+def normalize_array(arr):
+    # Shift the array to have only positive values
+    shifted_arr = arr - np.min(arr)
+
+    # Scale the shifted array to the range [0, 1]
+    normalized_arr = shifted_arr / np.max(shifted_arr)
+
+    return normalized_arr
+
+
+def get_probabilities(df, column_names, split_points):
     n = df.shape[0]
     df['all'] = np.zeros(n)
     for column in column_names:
@@ -344,13 +371,50 @@ def get_probabilities(df, column_names, score_thresholds):
     grounding_prob_smaller = {}
     grounding_prob_larger = {}
     for column in column_names:
-        df[column] = df[column] / df[column].max()
-        grounding_prob_smaller[column] = np.zeros(len(score_thresholds))
-        grounding_prob_larger[column] = np.zeros(len(score_thresholds))
-        for i, score_threshold in enumerate(score_thresholds):
+        df[column] = normalize_array(df[column])
+        grounding_prob_smaller[column] = np.zeros(len(split_points))
+        grounding_prob_larger[column] = np.zeros(len(split_points))
+        for i, score_threshold in enumerate(split_points):
             df_filtered = df[df[column] <= score_threshold]
             df_filtered_larger = df[df[column] > score_threshold]
             grounding_prob_smaller[column][i] = df_filtered.beaching_flag.mean()
             grounding_prob_larger[column][i] = df_filtered_larger.beaching_flag.mean()
 
     return grounding_prob_smaller, grounding_prob_larger
+
+
+def get_impurity(node):
+    """
+    :param node: data set on which to calculate
+    :return: impurity based on gini-index
+    """
+    n = len(node)
+    if n == 0:
+        return 0
+    else:
+        return np.sum(node)/n * (1 - np.sum(node)/n)
+
+
+def get_impurity_reduction(df, column_names, split_points):
+    n = df.shape[0]
+    df['all'] = np.zeros(n)
+    for column in column_names:
+        df['all'] += df[column]
+    column_names.insert(0, 'all')
+
+    impurity_reductions = {}
+    original_impurity = get_impurity(df.beaching_flag)
+    for column in column_names:
+        df[column] = normalize_array(df[column])
+        impurity_reductions[column] = np.zeros(len(split_points))
+        for i, split_point in enumerate(split_points):
+            if split_point == 1 or split_point == 0:
+                impurity_reductions[column][i] = 0
+                continue
+            left_child = df.beaching_flag[df[column] < split_point]
+            right_child = df.beaching_flag[df[column] > split_point]
+            reduction = original_impurity - (len(left_child) / n * get_impurity(left_child) + len(right_child) / n * get_impurity(right_child))
+            impurity_reductions[column][i] = reduction
+
+    return impurity_reductions
+
