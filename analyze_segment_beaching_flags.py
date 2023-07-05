@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 
 df = pd.read_csv(file_name_4, parse_dates=['time_start', 'time_end'], index_col='ID')
+df['velocity'] = np.hypot(df['velocity_north'], df['velocity_east'])
 table_beaching_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts().unstack().fillna(0).astype(int)
 # sort the table descending from most to least false beaching flags
 table_beaching_per_drifter.sort_values(by=False, ascending=False, inplace=True)
@@ -60,9 +61,9 @@ for i in range(len(xedges) - 1):
 
 
 # Set the labels and title
-plt.xlabel('Number of true beaching flags')
-plt.ylabel('Number of false beaching flags')
-ax.set_title('Number of true vs false beaching flags per drifter')
+plt.xlabel(r'Number of segments $\bf{with}$ grounding')
+plt.ylabel(r'Number of segments $\bf{without}$ grounding')
+ax.set_title('Distribution of drifters by amount of segments with and without grounding')
 
 # Remove original ticks and ticklabels
 ax.tick_params(axis='both', which='both', length=0)

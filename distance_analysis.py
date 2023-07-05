@@ -3,43 +3,54 @@ import picklemanager as pickm
 import numpy as np
 import matplotlib.pyplot as plt
 
-pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, drogued=True)
-ds_prev = pickm.load_pickle(pickm.create_pickle_path(pickle_name_undrogued))
-
-n_obs = len(ds_prev.obs)
-n_traj = len(ds_prev.traj)
-
-distances = np.flip(np.arange(5, 1000, 100))
-trajs = np.zeros(len(distances))
-obss = np.zeros(len(distances))
-
-fractions_traj = np.zeros(len(distances))
-fractions_obs = np.zeros(len(distances))
-
-for i, distance in enumerate(distances):
-    ds = load_data.load_subset(max_aprox_distance_km=distance, ds=ds_prev)
-
-    trajs[i] = len(ds.traj)
-    obss[i] = len(ds.obs)
-
-    fractions_traj[i] = len(ds.traj) / n_traj
-    fractions_obs[i] = len(ds.obs) / n_obs
-
-    ds_prev = ds
+ds = pickm.load_pickle(pickm.create_pickle_path('gdp_v2.00.nc_no_sst'))
 
 #%%
-fig1, ax = plt.subplots()
-ax.plot(distances, fractions_traj*100, c='b', label='Trajectories')
-ax.plot(distances, fractions_obs*100, c='r', label='Observations')
+n_obs = len(ds.obs)
+n_traj = len(ds.traj)
 
-ax.set_ylabel('Fraction trajectories (%)', color='b')
-ax.set_ylabel('Fraction observations (%)', color='r')
-ax.set_title('Fractions within distance to the shoreline')
-ax.legend(loc='upper left')
-ax.grid(True)
 
-plt.savefig('figures/distance_percentage_traj_obs_0.png')
+def get_fractions(distances):
+    traj_far = np.zeros(len(distances))
+    obs_far = np.zeros(len(distances))
+
+    for i, distance in enumerate(distances):
+        mask = ds.aprox_distance_shoreline.values < distance
+        obs = ds.obs.values[mask]
+
+        traj_far[i] = len(np.unique(ds.ids.isel(obs=obs)))
+        obs_far[i] = len(obs)
+
+    fractions_traj = traj_far / n_traj
+    fractions_obs = obs_far / n_obs
+
+    return fractions_traj, fractions_obs
+
+distances_far = np.flip(np.arange(5, 1000, 100))
+fractions_traj_far, fractions_obs_far = get_fractions(distances_far)
+distances_close = np.flip(np.arange(1, 16, 1))
+fractions_traj_close, fractions_obs_close = get_fractions(distances_close)
+
+
+#%%
+fig, axs = plt.subplots(2, 2, sharex='col', figsize=(10, 10), dpi=300)
+axs[0, 0].plot(distances_far, fractions_traj_far)
+axs[1, 0].plot(distances_far, fractions_obs_far)
+axs[0, 1].plot(distances_close, fractions_traj_close)
+axs[1, 1].plot(distances_close, fractions_obs_close)
+
+axs[0, 0].set_ylabel('Trajectories')
+axs[1, 0].set_ylabel('Observations')
+
+fig.text(0.5, 0.04, 'Maximum distance to the shoreline (km)', ha='center')
+fig.text(0.04, 0.5, 'Fraction of total', va='center', rotation='vertical')
+
+axs[0, 0].set_title('Far from the shore')
+axs[0, 1].set_title('Close to the shore')
+
+for ax in axs.flat:
+    ax.grid(True)
+
+plt.savefig('figures/distance_percentage_traj_obs_00.png')
 
 plt.show()
-
-

@@ -8,39 +8,11 @@ import plotter
 # %% Settings
 plot_things = False
 
-percentage = 100
-random_set = 1
-gps_only = True
-drogued = False
-threshold_aprox_distance_km = 12
-start_date = None
-end_date = None
 
-name = f'subset_{percentage}{(f"_{random_set}" if percentage < 100 else "")}'\
-       f'{("_" + str(start_date) if start_date is not None else "")}' \
-       f'{("_" + str(end_date) if end_date is not None else "")}' \
-       f'{("_gps" if gps_only else "")}' \
-       f'{("_undrogued" if not drogued else ("drogued" if drogued else ""))}' \
-       f'{("_" + str(threshold_aprox_distance_km) + "km" if threshold_aprox_distance_km is not None else "")}'
-
-ds_gdp = pickm.pickle_wrapper('ds_gdp_' + name, load_data.load_subset, percentage, gps_only, drogued,
-                              threshold_aprox_distance_km, start_date, end_date)
-
-print(f'Subset with {len(ds_gdp.traj)} trajectories loaded.')
+ds_gdp = pickm.load_pickle('ds_gdp_drogue_presence')
+ds_gdp = load_data.load_subset(type_death=1, ds=ds_gdp)
 
 
-# %% Check if observations are in order of drifter IDs
-def check_obs_in_order_of_ID(ds):
-    ids = ds.ids.values
-    unique_ids, indices = np.unique(ids, return_index=True)
-    sorted_indices = np.sort(indices)
-    unique_ids_sorted = ids[sorted_indices]
-
-    if abs(ds.ID.values - unique_ids_sorted).sum() > 0:
-        raise ValueError('Observations are not in order of drifter IDs!')
-
-
-check_obs_in_order_of_ID(ds_gdp)
 # %% Create segments
 print(f'Creating segments...', end='')
 
@@ -50,28 +22,7 @@ def get_segments(ds, max_seg_len_h):
     trajectories are not continuous in time, because of the filtering on approximate distance to the shoreline."""
     start_segment = []
     end_segment = []
-    segment_drifter_id = []
-
-    for ID in ds.ID.values:
-        obs = ds.obs.values[ds.ids == ID]
-        # check if obs is sequential
-        if np.any(obs[1:] - obs[:-1] != 1):
-            print('Warning: trajectory is not sequential in time!')
-
-        times = ds.time.values[obs]
-        durations_h = (times[1:] - times[:-1]) / np.timedelta64(1, 'h')
-        segment_duration = 0
-
-        for j, duration in enumerate(durations_h):
-            if duration == 1:
-                segment_duration += duration
-                if segment_duration == max_seg_len_h:
-                    end_segment.append(obs[j+1]+1)
-                    start_segment.append(end_segment[-1] - max_seg_len_h - 1)
-                    segment_drifter_id.append(ID)
-                    segment_duration = 0
-            else:
-                segment_duration = 0
+    beaching_flags = []
 
     return np.array(start_segment), np.array(end_segment)
 
