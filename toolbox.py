@@ -341,12 +341,16 @@ def get_probabilities(df, column_names, score_thresholds):
         df['all'] += df[column]
     column_names.insert(0, 'all')
 
-    grounding_prob = {}
+    grounding_prob_smaller = {}
+    grounding_prob_larger = {}
     for column in column_names:
         df[column] = df[column] / df[column].max()
-        grounding_prob[column] = np.zeros(len(score_thresholds))
+        grounding_prob_smaller[column] = np.zeros(len(score_thresholds))
+        grounding_prob_larger[column] = np.zeros(len(score_thresholds))
         for i, score_threshold in enumerate(score_thresholds):
             df_filtered = df[df[column] <= score_threshold]
-            grounding_prob[column][i] = df_filtered.beaching_flag.mean()
+            df_filtered_larger = df[df[column] > score_threshold]
+            grounding_prob_smaller[column][i] = df_filtered.beaching_flag.mean()
+            grounding_prob_larger[column][i] = df_filtered_larger.beaching_flag.mean()
 
-    return grounding_prob
+    return grounding_prob_smaller, grounding_prob_larger
