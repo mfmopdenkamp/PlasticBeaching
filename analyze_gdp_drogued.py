@@ -6,11 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
 ds = pickm.load_pickle(pickm.create_pickle_path('gdp_drogue_presence'))
-print(ds.info())
 #%%
-n_obs_drogued = ds.drogue_presence.values.sum()
-n_obs_undrogued = len(ds.obs) - n_obs_drogued
-percentage_obs_undrogued = n_obs_undrogued / len(ds.obs) * 100
 
 traj_undrogued_hours = np.zeros(len(ds.ID.values))
 traj_idx = np.insert(np.cumsum(ds.rowsize.values), 0, 0)
@@ -72,54 +68,47 @@ plt.show()
 
 #%%
 
-pickle_name = pickm.create_pickle_ds_gdp_name(location_type=True)
-ds_gps = pickm.pickle_wrapper(pickle_name, load_data.load_subset, location_type=True, ds=ds)
-pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, drogued=True)
-ds_gps_undrogued = pickm.pickle_wrapper(pickle_name_undrogued, load_data.load_subset, location_type=None,
-                                        drogued=False, ds=ds_gps)
-pickle_name_12km = pickm.create_pickle_ds_gdp_name(location_type=True, drogued=False,
-                                                   max_aprox_distance_km=12)
-ds_gps_undrogued_12km = pickm.pickle_wrapper(pickle_name_12km, load_data.load_subset, max_aprox_distance_km=12,
-                                             ds=ds_gps_undrogued)
+# Plot trajectory length histogram
+bins = 300
+fig, axs = plt.subplots(figsize=(12, 8))
+grid = fig.add_gridspec(3, 3)
 
+# Plot 2D histogram in the top right corner
+ax_main = fig.add_subplot(grid[0:2, 1:3])
+ax_main.pcolormesh(x, y, hist.T, cmap='hot_r', norm=colors.LogNorm())
+ax_main.set_xlabel('trajectory length (days)')
+ax_main.set_ylabel('undrogued trajectory fraction (%)')
+ax_main.set_title('2D Histogram')
 
-#%% count
-n_traj_total = len(ds.traj)
-n_obs_total = len(ds.obs)
-obs_per_traj = n_obs_total / n_traj_total
+# Plot 1D histogram on the left side
+ax_left = fig.add_subplot(grid[0:2, 0])
+ax_left.hist(percentage_undrogued_obs_per_drifter, bins=100, orientation='horizontal')
+ax_left.set_ylabel('undrogued trajectory fraction (%)')
+ax_left.yaxis.tick_right()
+ax_left.set_xscale('log')
 
-n_traj_gps = ds.location_type.values.sum()
-n_obs_gps = ds.rowsize.values[ds.location_type.values].sum()
+# Plot 1D histogram at the bottom
+ax_bottom = fig.add_subplot(grid[2, 1:3])
+ax_bottom.hist(ds.rowsize.values / 24, bins=bins, orientation='vertical')
+ax_bottom.set_xlabel('trajectory length (days)')
+ax_bottom.set_yscale('log')
 
-mask_gps_undrogued = ds.location_type.values & drifter_lost_drogue
-n_traj_gps_undrogued = np.sum(mask_gps_undrogued)
+# Remove unused subplot
+fig.delaxes(fig.add_subplot(grid[2, 0]))
 
-n_obs_gps_undrogued = 0
-traj_idk = np.insert(np.cumsum(ds.rowsize.values[mask_gps_undrogued]), 0, 0)
-for j in ds.traj.values[mask_gps_undrogued]:
-    n_obs_gps_undrogued += np.invert(ds.drogue_presence[slice(traj_idk[j], traj_idk[j + 1])]).sum()
+# Adjust the size of the subplots
+ax_main.set_position([0.35, 0.35, 0.55, 0.55])  # [left, bottom, width, height]
+ax_left.set_position([0.05, 0.35, 0.25, 0.55])
+ax_bottom.set_position([0.35, 0.05, 0.55, 0.25])
 
-percentage_gps_undrogued_obs = n_obs_gps_undrogued / n_obs_gps * 100
-percentage_gps_undrogued_traj = n_traj_gps_undrogued / n_traj_gps * 100
+# Add colorbar for the 2D histogram
+cax = fig.add_axes([0.92, 0.35, 0.02, 0.55])  # [left, bottom, width, height]
+cbar = plt.colorbar(ax_main.collections[0], cax=cax)
+cbar.set_label('Count')
 
-n_obs_gps_undrogued_12km = np.sum(ds.aprox_distance_shoreline.values < 12)
-n_traj_gps_undrogued_12km = len(ds_gps_undrogued_12km.traj)
+# Save the figure
+plt.savefig('figures/combined_figure.png', dpi=300)
 
-percentage_undrogued_obs_12km = n_obs_gps_undrogued_12km / n_obs_gps_undrogued * 100
-percentage_undrogued_traj_12km = n_traj_gps_undrogued_12km / n_traj_gps_undrogued * 100
-
-obs_per_traj_gps = n_obs_gps / n_traj_gps
-obs_per_traj_gps_undrogued = n_obs_gps_undrogued / n_traj_gps_undrogued
-obs_per_traj_gps_undrogued_12km = n_obs_gps_undrogued_12km / n_traj_gps_undrogued_12km
-
-
-#%%
-print('selection\t\tnumber of observations\t\tnumber of trajectories\t\tobservations per trajectory')
-print(f'GPS & Argos\t{n_obs_total}\t{n_traj_total}\t{obs_per_traj:.1f}')
-print(f'GPS\t{n_obs_gps}\t{n_traj_gps}\t{obs_per_traj_gps:.1f}')
-print(f'GPS, undrogued\t{n_obs_gps_undrogued}\t{n_traj_gps_undrogued}\t{obs_per_traj_gps_undrogued:.1f}')
-print(f'GPS, undrogued, < 12km of coast\t{n_obs_gps_undrogued_12km}\t{n_traj_gps_undrogued_12km}\t'
-        f'{obs_per_traj_gps_undrogued_12km:.1f}')
-print(f'Argos\t{n_obs_total - n_obs_gps}\t{n_traj_total - n_traj_gps}\t'
-    f'{(n_obs_total - n_obs_gps) / (n_traj_total - n_traj_gps):.1f}')
+# Show the figure
+plt.show()
 

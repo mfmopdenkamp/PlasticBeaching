@@ -32,13 +32,13 @@ def get_fractions(ds, distances):
     return fractions_traj, fractions_obs
 
 
-distances_far = np.flip(np.arange(5, 1000, 100))
+distances_far = np.flip(np.arange(5, 1000, 50))
 fractions_traj_far, fractions_obs_far = get_fractions(ds, distances_far)
 fractions_traj_far_undrogued, fractions_obs_far_undrogued =\
     get_fractions(ds_undrogued, distances_far)
 fractions_traj_far_undrogued_gps, fractions_obs_far_undrogued_gps =\
     get_fractions(ds_undrogued_gps, distances_far)
-distances_close = np.flip(np.arange(1, 16, 1))
+distances_close = np.flip(np.arange(1, 16, 0.5))
 fractions_traj_close, fractions_obs_close = get_fractions(ds, distances_close)
 fractions_traj_close_undrogued, fractions_obs_close_undrogued =\
     get_fractions(ds_undrogued, distances_close)
@@ -75,6 +75,6 @@ for ax in axs.flat:
 axs[0,0].legend()
 
 plt.subplots_adjust(hspace=0.1)
-plt.savefig('figures/distance_percentage_traj_obs_00.png')
+plt.savefig('figures/distance_fraction.png')
 
 plt.show()
