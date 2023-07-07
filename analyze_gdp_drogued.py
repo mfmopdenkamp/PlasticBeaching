@@ -70,36 +70,39 @@ plt.show()
 
 # Plot trajectory length histogram
 bins = 300
-fig, axs = plt.subplots(figsize=(12, 8))
-grid = fig.add_gridspec(3, 3)
+fig, axs = plt.subplots(2, 2, figsize=(12, 8))
 
 # Plot 2D histogram in the top right corner
-ax_main = fig.add_subplot(grid[0:2, 1:3])
+ax_main = axs[0, 1]
 ax_main.pcolormesh(x, y, hist.T, cmap='hot_r', norm=colors.LogNorm())
-ax_main.set_xlabel('trajectory length (days)')
-ax_main.set_ylabel('undrogued trajectory fraction (%)')
-ax_main.set_title('2D Histogram')
+
+#turn off the x and y axis labels for the top right subplot
+ax_main.xaxis.set_ticklabels([])
+ax_main.yaxis.set_ticklabels([])
 
 # Plot 1D histogram on the left side
-ax_left = fig.add_subplot(grid[0:2, 0])
+ax_left = axs[0, 0]
 ax_left.hist(percentage_undrogued_obs_per_drifter, bins=100, orientation='horizontal')
 ax_left.set_ylabel('undrogued trajectory fraction (%)')
-ax_left.yaxis.tick_right()
+# ax_left.yaxis.tick_right()
 ax_left.set_xscale('log')
+ax_left.set_ylim([0, 100])
 
 # Plot 1D histogram at the bottom
-ax_bottom = fig.add_subplot(grid[2, 1:3])
+ax_bottom = axs[1, 1]
 ax_bottom.hist(ds.rowsize.values / 24, bins=bins, orientation='vertical')
 ax_bottom.set_xlabel('trajectory length (days)')
 ax_bottom.set_yscale('log')
+ax_bottom.set_xlim([0, ds.rowsize.values.max() / 24])
 
 # Remove unused subplot
-fig.delaxes(fig.add_subplot(grid[2, 0]))
+axs[1, 0].remove()
 
+alter = 0.1
 # Adjust the size of the subplots
-ax_main.set_position([0.35, 0.35, 0.55, 0.55])  # [left, bottom, width, height]
-ax_left.set_position([0.05, 0.35, 0.25, 0.55])
-ax_bottom.set_position([0.35, 0.05, 0.55, 0.25])
+ax_main.set_position([0.35-alter, 0.35-alter, 0.55+alter, 0.55+alter])  # [left, bottom, width, height]
+ax_left.set_position([0.092, 0.35-alter, 0.25-alter, 0.55+alter])
+ax_bottom.set_position([0.35-alter, 0.06, 0.55+alter, 0.28-alter])
 
 # Add colorbar for the 2D histogram
 cax = fig.add_axes([0.92, 0.35, 0.02, 0.55])  # [left, bottom, width, height]
