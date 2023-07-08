@@ -418,3 +418,8 @@ def get_impurity_reduction(df, column_names, split_points):
 
     return impurity_reductions
 
+
+def hard_coded_exp_fit(x):
+    prob = 0.5 * np.exp(-0.0003 * x) + 0.1
+    output = (prob > 0.5)
+    return output

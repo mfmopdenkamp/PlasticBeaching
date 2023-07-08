@@ -28,7 +28,6 @@ if filter:
         (table_beaching_per_drifter[False] <= 15) & (table_beaching_per_drifter[True] <= 6)].index
     df = df[df.drifter_id.isin(drifter_ids_to_keep)]
 
-df.drop(columns=['drifter_id'], inplace=True, errors='ignore')
 if remove_tidal:
     df['total_tidal'] = np.zeros(len(df))
     tidal_columns = []
@@ -43,11 +42,8 @@ if remove_directionality:
     df.drop(columns=['velocity_north', 'velocity_east', 'shortest_distance_n', 'shortest_distance_e'],
             inplace=True, errors='ignore')
 
-# %%
 
-def predict_onink(distance):
-    prob = 1- math.exp()
-
+df.drop(columns=['drifter_id'], inplace=True, errors='ignore')
 #%%
 y_column = 'beaching_flag'
 
@@ -76,6 +72,14 @@ def get_even_distribution(x_train, y_train):
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=42, shuffle=False)
 x_train_resampled, y_train_resampled = get_even_distribution(x_train, y_train)
 
+# %% base line model
+from toolbox import hard_coded_exp_fit
+
+y_pred_base = hard_coded_exp_fit(x_test['shortest_distance'])
+a_score_base = accuracy_score(y_test, y_pred_base)
+c_matrix_base = confusion_matrix(y_test, y_pred_base)
+
+#%%
 # param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 'max_depth':[None, 5, 10, 20],
 #               'max_features':[None, 'sqrt', 'log2']}
 # estimator = RandomForestClassifier()
