@@ -1,33 +1,60 @@
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, message="iteritems")
-import load_data
+import picklemanager as pickm
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.utils import resample
-import scipy.stats as stats
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
 from file_names import *
+
+y_column = 'beaching_flag'
 
 df = pd.read_csv(file_name_4, parse_dates=['time_start', 'time_end'], index_col='ID')
 df.drop(columns=['ID.2', 'ID.1', 'longitude_start', 'latitude_start', 'longitude_end', 'latitude_end',
                  ], inplace=True, errors='ignore')
 df['velocity'] = np.hypot(df['velocity_north'], df['velocity_east'])
-filter = True
+
+filter_outliers = True
 remove_tidal = False
 remove_directionality = False
+remove_coastal_type = False
+undersampling = False
 
-#%% filter out drifters with less more than 15 false beaching flags and more than 6 true beaching flags
-if filter:
+
+#%% filter out drifters with more than 15 false beaching flags and more than 6 true beaching flags
+if filter_outliers:
     table_beaching_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts().unstack().fillna(0).astype(int)
     drifter_ids_to_keep = table_beaching_per_drifter[
         (table_beaching_per_drifter[False] <= 15) & (table_beaching_per_drifter[True] <= 6)].index
     df = df[df.drifter_id.isin(drifter_ids_to_keep)]
 
+#%%
+cor = df.corr(numeric_only=True)
+diki = pd.DataFrame({'pd.corr': cor[y_column].sort_values(ascending=False)[1:]})
+plt.figure(figsize=(7, 12))
+plt.barh(diki.index, diki['pd.corr'])
+plt.xlabel('Point-biserial correlation coefficients with grounding flag')
+plt.grid(axis='x')
+#plot horizontal thin lines from yticks to origin
+x_lims = plt.gca().get_xlim()
+for y in diki.index:
+    plt.plot([x_lims[0], 0], [y, y], 'k--', alpha=0.3)
+
+plt.xlim(x_lims)
+
+plt.tight_layout()
+
+plt.savefig(f'figures/corr_coef_grounding_filtered-{filter_outliers}.png', dpi=300)
+
+plt.show()
+
+#%%
 if remove_tidal:
     df['total_tidal'] = np.zeros(len(df))
     tidal_columns = []
@@ -39,14 +66,22 @@ if remove_tidal:
     df.drop(columns=tidal_columns, inplace=True, errors='ignore')
 
 if remove_directionality:
-    df.drop(columns=['velocity_north', 'velocity_east', 'shortest_distance_n', 'shortest_distance_e'],
+    df.drop(columns=['velocity_north', 'velocity_east', 'shortest_distance_n', 'shortest_distance_e', 'wind_10m_v_min',
+                     'wind_10m_v_max', 'wind_10m_v_mean', 'wind_10m_v_std', 'wind_10m_u_min', 'wind_10m_u_max'],
             inplace=True, errors='ignore')
 
+if remove_coastal_type:
+    coastal_type_columns = []
+    for column in df.columns:
+        try:
+            if column.split('_')[1] in ['beach', 'bedrock', 'wetland']:
+                coastal_type_columns.append(column)
+        except IndexError:
+            pass
+    df.drop(columns=coastal_type_columns, inplace=True, errors='ignore')
 
 df.drop(columns=['drifter_id'], inplace=True, errors='ignore')
 #%%
-y_column = 'beaching_flag'
-
 x = df.drop(columns=[y_column, 'time_start', 'time_end'])
 y = df[y_column]
 
@@ -65,12 +100,20 @@ def get_even_distribution(x_train, y_train):
 
     x_train_resampled = np.concatenate((x_true, x_false_resampled), axis=0)
     y_train_resampled = np.concatenate((np.ones(count_min), np.zeros(count_min)), axis=0)
-
+    # if the input has been a dataframe, convert back to dataframe
+    if isinstance(x_train, pd.DataFrame):
+        x_train_resampled = pd.DataFrame(x_train_resampled, columns=x_train.columns)
     return x_train_resampled, y_train_resampled
 
 
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25, random_state=42, shuffle=False)
-x_train_resampled, y_train_resampled = get_even_distribution(x_train, y_train)
+if undersampling:
+    x_train, y_train = get_even_distribution(x_train, y_train)
+#%% give results for predicting all false
+y_pred_all_false = np.zeros(len(y_test))
+a_score_all_false = accuracy_score(y_test, y_pred_all_false)
+c_matrix_all_false = confusion_matrix(y_test, y_pred_all_false)
+
 
 # %% base line model
 from toolbox import hard_coded_exp_fit
@@ -79,63 +122,79 @@ y_pred_base = hard_coded_exp_fit(x_test['shortest_distance'])
 a_score_base = accuracy_score(y_test, y_pred_base)
 c_matrix_base = confusion_matrix(y_test, y_pred_base)
 
-#%%
-# param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 'max_depth':[None, 5, 10, 20],
-#               'max_features':[None, 'sqrt', 'log2']}
-# estimator = RandomForestClassifier()
-# grid_search = HalvingGridSearchCV(estimator, param_grid=param_grid, verbose=2)
-# grid_search.fit(x, y)
-# df_gs = pd.DataFrame(grid_search.cv_results_)
+# %% decision tree
+pickle_name = pickm.create_pickle_path(f'decision_tree_{filter_outliers}_{remove_tidal}_{remove_directionality}_'
+                                       f'{undersampling}_{remove_coastal_type}')
+try:
+    grid_search_tree = pickm.load_pickle(pickle_name)
+except FileNotFoundError:
+    params = {'splitter': ['best', 'random'], 'max_depth': [None, 5, 10, 20],
+                'min_samples_split': [2, 5, 10, 20, 50, 100], 'min_samples_leaf': [1, 2, 5, 10, 20],
+                'max_features': [None, 'sqrt', 'log2']}
+    grid_search_tree = GridSearchCV(DecisionTreeClassifier(), param_grid=params, verbose=2)
+    grid_search_tree.fit(x_train, y_train)
+
+    pickm.dump_pickle(grid_search_tree, pickle_name)
+
+y_pred_tree = grid_search_tree.predict(x_test)
+a_score_tree = accuracy_score(y_test, y_pred_tree)
+c_matrix_tree = confusion_matrix(y_test, y_pred_tree)
+
+
+
+#%% random forest
+try:
+    pickle_name = pickm.create_pickle_path(f'random_forest_results_{filter_outliers}_{remove_tidal}_{remove_directionality}_'
+                                           f'{undersampling}_{remove_coastal_type}')
+    grid_search_rf = pickm.load_pickle(pickle_name)
+except FileNotFoundError:
+    param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 'max_depth':[None, 5, 10, 20],
+                  'max_features':[None, 'sqrt', 'log2']}
+    grid_search_rf = HalvingGridSearchCV(RandomForestClassifier(), param_grid=param_grid, verbose=2)
+    grid_search_rf.fit(x_train, y_train)
+
+    pickm.dump_pickle(grid_search_rf, pickle_name)
+
 # ===================>>>>
-best_params_1 = {'max_depth': 5, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 50}
+# best_params_1 = {'max_depth': 5, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 50}
 
-estimator = RandomForestClassifier(**best_params_1)
+y_pred_rf = grid_search_rf.predict(x_test)
+a_score_rf = accuracy_score(y_test, y_pred_rf)
+c_matrix_rf = confusion_matrix(y_test, y_pred_rf)
+#%% write scores to file
+with open('models_results.txt', 'a') as f:
+    f.write(f'filter_outliers = {filter_outliers}\n remove_tidal = {remove_tidal}\n remove_directionality = '
+            f'{remove_directionality}\n remove_coastal_type = {remove_coastal_type}\n undersampling = {undersampling}\n')
+    f.write(f'a_majority = {a_score_all_false}\n')
+    f.write(f'a_dist = {a_score_base}\n')
+    f.write(f'a_tree = {a_score_tree}\n')
+    f.write(f'a_rf = {a_score_rf}\n')
+    f.write('\n')
+    f.write(f'All false:\n\n {c_matrix_all_false}\n')
+    f.write(f'Base line:\n {c_matrix_base}\n')
+    f.write(f'Decision tree:\n {c_matrix_tree}\n')
+    f.write(f'Random forest:\n {c_matrix_rf}\n')
+    f.write('\n')
 
-estimator.fit(x_train_resampled, y_train_resampled)
-
-y_pred = estimator.predict(x_test)
-
-a_score = accuracy_score(y_test, y_pred)
-
-c_matrix = confusion_matrix(y_test, y_pred)
-
-#%%
-cor = df.corr(numeric_only=True)
-diki = pd.DataFrame({'pd.corr': cor[y_column].sort_values(ascending=False)[1:]})
-plt.figure(figsize=(7, 12))
-plt.barh(diki.index, diki['pd.corr'])
-plt.xlabel('Point-biserial correlation coefficients with grounding flag')
-plt.grid(axis='x')
-#plot horizontal thin lines from yticks to origin
-x_lims = plt.gca().get_xlim()
-for y in diki.index:
-    plt.plot([x_lims[0], 0], [y, y], 'k--', alpha=0.3)
-
-plt.xlim(x_lims)
-
-plt.tight_layout()
-
-plt.savefig('figures/corr_coef_grounding.png', dpi=300)
-
-plt.show()
 
 
 #%% plot the best features
-importances = estimator.feature_importances_
-std = np.std([tree.feature_importances_ for tree in estimator.estimators_], axis=0)
-top = x.shape[1] // 2
-indices = np.argsort(importances)[::-1][:top]
 
-plt.figure(figsize=(7, 5))
-plt.title("Feature importances with standard deviations")
-plt.barh(range(top), importances[indices], xerr=std[indices], align="center")
-plt.yticks(range(top), x.columns[indices])
-plt.ylim([-1, top])
-plt.tight_layout()
+def plot_feature_importances(importances):
+    std = np.std([tree.feature_importances_ for tree in estimator.estimators_], axis=0)
+    top = x.shape[1] // 2
+    indices = np.argsort(importances)[::-1][:top]
 
-plt.savefig('figures/feature_importances_grounding.png', dpi=300)
+    plt.figure(figsize=(7, 5))
+    plt.title("Feature importances with standard deviations")
+    plt.barh(range(top), importances[indices], xerr=std[indices], align="center")
+    plt.yticks(range(top), x.columns[indices])
+    plt.ylim([-1, top])
+    plt.tight_layout()
 
-plt.show()
+    plt.savefig('figures/feature_importances_grounding.png', dpi=300)
+
+    plt.show()
 
 
 

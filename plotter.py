@@ -38,15 +38,14 @@ def get_sophie_subplots(figsize=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), tit
     return fig, ax
 
 
-def get_marc_subplots(size=(12, 8), extent=(-180, 180, -85, 85), title=''):
+def get_marc_subplots(size=(12, 8), extent=(-180, 180, -85, 85), title='', show_coastlines=True, ax=None):
     """ This function sets up a figure (fig and ax) for plotting the data in lonlatbox of the extent."""
 
-    fig = plt.figure(figsize=size, dpi=300)
+    if ax is None:
+        fig = plt.figure(figsize=size, dpi=300)
+        ax = plt.axes(projection=ccrs.PlateCarree())
 
     tiler = Stamen('terrain-background')
-
-    ax = plt.axes(projection=ccrs.PlateCarree())
-
     ax.set_extent(extent, crs=ccrs.Geodetic())
 
     zoom = 10  # trial and error number, too big, and things don't load, too small, and map is low resolution
@@ -54,13 +53,16 @@ def get_marc_subplots(size=(12, 8), extent=(-180, 180, -85, 85), title=''):
 
     plt.title(title, fontsize=20)
 
-    ax.coastlines()
+    if show_coastlines:
+        ax.coastlines()
 
     gl = ax.gridlines(draw_labels=True)
     gl.top_labels = gl.right_labels = False
 
-    return fig, ax
-
+    if ax is None:
+        return fig, ax
+    else:
+        return ax
 
 def plot_trajectories_death_type(ds, s=2):
     """given a dataset, plot the trajectories on a map"""

@@ -27,8 +27,8 @@ for i, shore_distance_threshold in enumerate(shore_distance_thresholds):
 from scipy.optimize import curve_fit
 
 
-def reciprocal_func(x, a, b):
-    return a/x + b
+def power_func(x, a, b):
+    return a * np.power(x, b)
 
 
 def exponential_func(x, a, b, c):
@@ -41,15 +41,15 @@ def hard_coded_exp_fit(x):
 
 # fit exponential function to probability vs shore distance
 # Fit the data to the exponential decay function
-a_fit, b_fit = curve_fit(reciprocal_func, shore_distance_thresholds, beaching_prob_by_shore_distance,
-                   p0=(600, 0.1))[0]
+a_fit, b_fit = curve_fit(power_func, shore_distance_thresholds, beaching_prob_by_shore_distance,
+                         p0=(600, 0.1))[0]
 # Generate the fitted curve
-y_fit = reciprocal_func(shore_distance_thresholds, a_fit, b_fit)
+y_fit = power_func(shore_distance_thresholds, a_fit, b_fit)
 
-a_fit2, b_fit2, c_fit2 = curve_fit(exponential_func, shore_distance_thresholds, beaching_prob_by_shore_distance,
-                   p0=(0.5, -0.0003, 0.1))[0]
+# a_fit2, b_fit2, c_fit2 = curve_fit(exponential_func, shore_distance_thresholds, beaching_prob_by_shore_distance,
+#                    p0=(0.5, -0.0003, 0.1))[0]
 
-y_fit2 = exponential_func(shore_distance_thresholds, a_fit2, b_fit2, c_fit2)
+# y_fit2 = exponential_func(shore_distance_thresholds, a_fit2, b_fit2, c_fit2)
 
 y_fit3 = hard_coded_exp_fit(shore_distance_thresholds)
 
@@ -58,9 +58,9 @@ plt.scatter(shore_distance_thresholds, beaching_prob_by_shore_distance, label='D
 
 plt.figure(figsize=(7, 5))
 plt.scatter(shore_distance_thresholds/1000, beaching_prob_by_shore_distance, label='Data')
-plt.plot(shore_distance_thresholds/1000, y_fit, label='Fitted reciprocal function')
-plt.plot(shore_distance_thresholds/1000, y_fit2, label='Fitted exponential function')
-plt.plot(shore_distance_thresholds/1000, y_fit3, label='Hard coded exponential function')
+plt.plot(shore_distance_thresholds/1000, y_fit, label='Fitted power function')
+# plt.plot(shore_distance_thresholds/1000, y_fit2, label='Fitted exponential function')
+plt.plot(shore_distance_thresholds/1000, y_fit3, label='Fitted exponential function')
 plt.xlabel('shore distance threshold [km]')
 plt.ylabel('Beaching probability')
 plt.legend()
