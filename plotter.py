@@ -44,6 +44,9 @@ def get_marc_subplots(size=(12, 8), extent=(-180, 180, -85, 85), title='', show_
     if ax is None:
         fig = plt.figure(figsize=size, dpi=300)
         ax = plt.axes(projection=ccrs.PlateCarree())
+        return_fig = True
+    else:
+        return_fig = False
 
     tiler = Stamen('terrain-background')
     ax.set_extent(extent, crs=ccrs.Geodetic())
@@ -59,7 +62,7 @@ def get_marc_subplots(size=(12, 8), extent=(-180, 180, -85, 85), title='', show_
     gl = ax.gridlines(draw_labels=True)
     gl.top_labels = gl.right_labels = False
 
-    if ax is None:
+    if return_fig:
         return fig, ax
     else:
         return ax

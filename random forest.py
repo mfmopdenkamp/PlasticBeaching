@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_score, recall_score, f1_score
 from sklearn.utils import resample
 from sklearn.experimental import enable_halving_search_cv
 from sklearn.model_selection import GridSearchCV, HalvingGridSearchCV
@@ -112,6 +112,9 @@ if undersampling:
 #%% give results for predicting all false
 y_pred_all_false = np.zeros(len(y_test))
 a_score_all_false = accuracy_score(y_test, y_pred_all_false)
+p_score_all_false = precision_score(y_test, y_pred_all_false)
+r_score_all_false = recall_score(y_test, y_pred_all_false)
+f1_score_all_false = f1_score(y_test, y_pred_all_false)
 c_matrix_all_false = confusion_matrix(y_test, y_pred_all_false)
 
 
@@ -120,6 +123,9 @@ from toolbox import hard_coded_exp_fit
 
 y_pred_base = hard_coded_exp_fit(x_test['shortest_distance'])
 a_score_base = accuracy_score(y_test, y_pred_base)
+p_score_base = precision_score(y_test, y_pred_base)
+r_score_base = recall_score(y_test, y_pred_base)
+f1_score_base = f1_score(y_test, y_pred_base)
 c_matrix_base = confusion_matrix(y_test, y_pred_base)
 
 # %% decision tree
@@ -138,8 +144,11 @@ except FileNotFoundError:
 
 y_pred_tree = grid_search_tree.predict(x_test)
 a_score_tree = accuracy_score(y_test, y_pred_tree)
+a_score_tree_train = accuracy_score(y_train, grid_search_tree.predict(x_train))
+p_score_tree = precision_score(y_test, y_pred_tree)
+r_score_tree = recall_score(y_test, y_pred_tree)
+f1_score_tree = f1_score(y_test, y_pred_tree)
 c_matrix_tree = confusion_matrix(y_test, y_pred_tree)
-
 
 
 #%% random forest
@@ -148,18 +157,23 @@ try:
                                            f'{undersampling}_{remove_coastal_type}')
     grid_search_rf = pickm.load_pickle(pickle_name)
 except FileNotFoundError:
-    param_grid = {'n_estimators':[10, 50, 100], 'min_samples_split':[2, 5, 10, 20], 'max_depth':[None, 5, 10, 20],
-                  'max_features':[None, 'sqrt', 'log2']}
-    grid_search_rf = HalvingGridSearchCV(RandomForestClassifier(), param_grid=param_grid, verbose=2)
+    param_grid = {'n_estimators':[50, 100, 200, 300], 'min_samples_split':[10, 20, 40, 80], 'max_depth':[None, 5, 10, 20],
+                  'max_features':[None, 'sqrt', 'log2'], 'min_samples_leaf': [1, 2, 5, 10, 20]}
+
+    grid_search_rf = HalvingGridSearchCV(RandomForestClassifier(), param_grid=param_grid, verbose=1)
     grid_search_rf.fit(x_train, y_train)
 
     pickm.dump_pickle(grid_search_rf, pickle_name)
 
 # ===================>>>>
-# best_params_1 = {'max_depth': 5, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 50}
+# best_params_1 = {'max_depth': None, 'max_features': None, 'min_samples_leaf': 10, 'min_samples_split': 20, 'n_estimators': 100}
 
 y_pred_rf = grid_search_rf.predict(x_test)
 a_score_rf = accuracy_score(y_test, y_pred_rf)
+a_score_rf_train = accuracy_score(y_train, grid_search_rf.predict(x_train))
+p_score_rf = precision_score(y_test, y_pred_rf)
+r_score_rf = recall_score(y_test, y_pred_rf)
+f1_score_rf = f1_score(y_test, y_pred_rf)
 c_matrix_rf = confusion_matrix(y_test, y_pred_rf)
 #%% write scores to file
 with open('models_results.txt', 'a') as f:
@@ -169,6 +183,12 @@ with open('models_results.txt', 'a') as f:
     f.write(f'a_dist = {a_score_base}\n')
     f.write(f'a_tree = {a_score_tree}\n')
     f.write(f'a_rf = {a_score_rf}\n')
+    f.write('\n')
+    f.write(f'a_tree_train = {a_score_tree_train}\n')
+    f.write(f'a_rf_train = {a_score_rf_train}\n')
+    f.write('\n')
+    f.write(f'tree params = {grid_search_tree.best_params_}\n')
+    f.write(f'rf params = {grid_search_rf.best_params_}\n')
     f.write('\n')
     f.write(f'All false:\n\n {c_matrix_all_false}\n')
     f.write(f'Base line:\n {c_matrix_base}\n')
@@ -181,13 +201,12 @@ with open('models_results.txt', 'a') as f:
 #%% plot the best features
 
 def plot_feature_importances(importances):
-    std = np.std([tree.feature_importances_ for tree in estimator.estimators_], axis=0)
     top = x.shape[1] // 2
     indices = np.argsort(importances)[::-1][:top]
 
     plt.figure(figsize=(7, 5))
     plt.title("Feature importances with standard deviations")
-    plt.barh(range(top), importances[indices], xerr=std[indices], align="center")
+    plt.barh(range(top), importances[indices], align="center")
     plt.yticks(range(top), x.columns[indices])
     plt.ylim([-1, top])
     plt.tight_layout()

@@ -45,13 +45,22 @@ ground_probs_smaller, ground_probs_larger = tb.get_probabilities(df, column_name
                                                                  split_points=tidal_elevation_split_points)
 plot_360(column_names, ground_probs_smaller, ax=ax)
 ax.legend(title='tidal constituent')
-# Set the common y-label for the entire figure
-fig.text(0, 0.5, 'beaching probability', va='center', rotation='vertical')
+
+fig.text(0, 0.5, 'beaching probability smaller than threshold', va='center', rotation='vertical')
 plt.xlabel('split point normalized tidal elevation')
 plt.tight_layout()
-plt.savefig('figures/grounding_prob_vs_tidals', dpi=300)
+plt.savefig('figures/grounding_prob_vs_tidals_smaller.png', dpi=300)
 plt.show()
+#%%
+fig, ax = plt.subplots(figsize=(7, 5), dpi=300)
+plot_360(column_names, ground_probs_larger, ax=ax)
+ax.legend(title='tidal constituent')
 
+fig.text(0, 0.5, 'beaching probability larger than threshold', va='center', rotation='vertical')
+plt.xlabel('split point normalized tidal elevation')
+plt.tight_layout()
+plt.savefig('figures/grounding_prob_vs_tidals_larger.png', dpi=300)
+plt.show()
 
 #%% plot impurity reduction
 fig, ax = plt.subplots(figsize=(7, 5), dpi=300)

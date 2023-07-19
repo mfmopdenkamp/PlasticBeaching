@@ -79,15 +79,24 @@ for c_type in coast_types:
                         f'score_{c_type}_360deg_2km']
     column_names_slices[c_type] = [f'score_{c_type}_22deg_14km', f'score_{c_type}_45deg_10km', f'score_{c_type}_60deg_9km',
                            f'score_{c_type}_180deg_5km', f'score_{c_type}_270deg_4km']
-    for version in [0, 1]:
-        ground_probs[f'360_{c_type}_{version}'] = \
-            tb.get_probabilities(df, column_names=column_names_360[c_type], split_points=shore_score_thresholds)[version]
-        ground_probs[f'slices_{c_type}_{version}'] = \
-            tb.get_probabilities(df, column_names=column_names_slices[c_type], split_points=shore_score_thresholds)[version]
+    versions = [0, 1]
+    column_names_360_c_type = column_names_360[c_type]
+    column_names_slices_c_type = column_names_slices[c_type]
+
+    ground_probs.update({
+        f'360_{c_type}_{version}':
+            tb.get_probabilities(df, column_names=column_names_360_c_type, split_points=shore_score_thresholds)[version]
+        for version in versions
+    })
+
+    ground_probs.update({
+        f'slices_{c_type}_{version}':
+            tb.get_probabilities(df, column_names=column_names_slices_c_type, split_points=shore_score_thresholds)[
+                version]
+        for version in versions
+    })
 
 #%% define plot functions
-
-
 def plot_360(c_names, beaching_probs, title='', ax=None):
     if ax is None:
         fig, ax = plt.subplots(figsize=(7, 5))

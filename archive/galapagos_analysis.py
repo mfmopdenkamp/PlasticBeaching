@@ -1,6 +1,6 @@
 import picklemanager as pickm
 from create_subset_shoreline_proximity import create_subset
-import analyzer
+import toolbox as tb
 from plotter import *
 import matplotlib.pyplot as plt
 
@@ -32,7 +32,7 @@ selected_gdf = df_shore[(df_shore.bounds['minx'] >= min_lon) & (df_shore.bounds[
 
 
 def add_distance_shoreline(ds):
-    ds['distance_shoreline'] = ('obs', analyzer.find_shortest_distance(ds, selected_gdf))
+    ds['distance_shoreline'] = ('obs', tb.find_shortest_distance(ds, selected_gdf))
     return ds
 
 

@@ -75,6 +75,6 @@ for ax in axs.flat:
 axs[0,0].legend()
 
 plt.subplots_adjust(hspace=0.1)
-plt.savefig('figures/distance_fraction.png')
+plt.savefig('figures/distance_fractions.png')
 
 plt.show()

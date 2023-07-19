@@ -81,9 +81,9 @@ fig, axs = plt.subplots(2, 1, figsize=(7, 8))
 
 # Plot mean and standard deviation for each variable
 axs[0].plot(time_range, mean_drogue, label='Mean')
-axs[0].fill_between(time_range, mean_drogue-std_drogue, mean_drogue+std_drogue, color='b', alpha=0.2, label='Std dev')
+# axs[0].fill_between(time_range, mean_drogue-std_drogue, mean_drogue+std_drogue, color='b', alpha=0.2, label='Std dev')
 axs[1].plot(time_range, mean_velocity, label='Mean')
-axs[1].fill_between(time_range, mean_velocity-std_velocity, mean_velocity+std_velocity, color='b', alpha=0.2, label='Std dev')
+# axs[1].fill_between(time_range, mean_velocity-std_velocity, mean_velocity+std_velocity, color='b', alpha=0.2, label='Std dev')
 
 # Add labels and titles
 axs[0].set(xlabel='Time (hours before grounding)', ylabel='Drogue presence')
@@ -93,6 +93,10 @@ axs[1].set_title('Velocity in the last 24 hours before grounding')
 
 axs[0].set_xlim([-24, 0])
 axs[1].set_xlim([-24, 0])
+
+# Add zero line
+axs[0].axhline(0, color='k', linestyle='--')
+axs[1].axhline(0, color='k', linestyle='--')
 
 # Add legends
 axs[0].legend()
@@ -108,7 +112,7 @@ plt.show()
 import cartopy.crs as ccrs
 import plotter
 
-fig2, axs = plt.subplots(5, 2, subplot_kw={'projection': ccrs.PlateCarree()}, figsize=(20, 25), dpi=300)
+fig2, axs = plt.subplots(5, 2, subplot_kw={'projection': ccrs.PlateCarree()}, figsize=(15, 25), dpi=300)
 
 # Selecting random 10 drifters
 idxs = np.random.choice(range(len(final_segments_drogueness)), 10, replace=False)

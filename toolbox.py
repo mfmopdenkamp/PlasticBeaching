@@ -375,7 +375,7 @@ def get_probabilities(df, column_names, split_points):
         grounding_prob_smaller[column] = np.zeros(len(split_points))
         grounding_prob_larger[column] = np.zeros(len(split_points))
         for i, score_threshold in enumerate(split_points):
-            df_filtered = df[df[column] <= score_threshold]
+            df_filtered = df[df[column] < score_threshold]
             df_filtered_larger = df[df[column] > score_threshold]
             grounding_prob_smaller[column][i] = df_filtered.beaching_flag.mean()
             grounding_prob_larger[column][i] = df_filtered_larger.beaching_flag.mean()
