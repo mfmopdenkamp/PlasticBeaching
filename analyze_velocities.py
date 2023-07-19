@@ -1,12 +1,12 @@
 # This script analyzes the velocities within the GDP hourly dataset
-
+from numba import jit
 import load_data
 import numpy as np
 import toolbox as tb
 import picklemanager as pickm
 import matplotlib.pyplot as plt
 
-ds = load_data.get_ds_drifters('gdp_v2.00.nc')
+ds = pickm.load_pickle(pickm.create_pickle_path('gdp_drogue_presence_sst'))
 
 ds_gps = load_data.load_subset(location_type='gps', ds=ds)
 ds_argos = load_data.load_subset(location_type='argos', ds=ds)
@@ -29,34 +29,46 @@ print(f'Maximum velocity of GPS = {max_v_gps:.4f} m/s.')
 print(f'Maximum velocity of Argos = {max_v_argos:.4f} m/s.')
 
 #%%
-pickle_name_undrogued = pickm.create_pickle_ds_gdp_name(location_type=True, drogued=True)
-ds_undrogued = pickm.load_pickle(pickm.create_pickle_path(pickle_name_undrogued))
 
-n_obs = len(ds_undrogued.obs)
-n_traj = len(ds_undrogued.traj)
+@jit(nopython=True)
+def get_velocity_and_std(aprox_distances, ve, vn, distances, delta_km=0.2):
 
-delta_km = 0.2
-max_km = 10
+    velocities = np.zeros(len(distances))
+    velocities_std = np.zeros(len(distances))
+    for i, distance in enumerate(distances):
+        mask = ((distance - delta_km) < aprox_distances) & (aprox_distances < distance)
+        velocities[i] = np.hypot(ve[mask], vn[mask]).mean()
+        velocities_std[i] = np.hypot(ve[mask], vn[mask]).std()
 
-distances = np.flip(np.arange(delta_km, max_km, delta_km))
-trajs = np.zeros(len(distances))
-obss = np.zeros(len(distances))
+    return velocities, velocities_std
 
-velocities = np.zeros(len(distances))
 
-for i, distance in enumerate(distances):
-    ds = load_data.load_subset(max_aprox_distance_km=distance, ds=ds_undrogued,
-                               min_aprox_distance_km=distance - delta_km)
+delta_km = 0.4
+max_km = 12
+distances = np.flip(np.arange(delta_km, max_km + delta_km, delta_km))
 
-    trajs[i] = len(ds.traj)
-    obss[i] = len(ds.obs)
-    velocities[i] = np.hypot(ds.ve.values, ds.vn.values).mean()
+aprox_distances = ds.aprox_distance_shoreline.values[ds.drogue_presence.values]
+ve = ds.ve.values[ds.drogue_presence.values]
+vn = ds.vn.values[ds.drogue_presence.values]
+velocities_drogued, std_drogued = get_velocity_and_std(aprox_distances, ve, vn, distances)
+
+aprox_distances = ds.aprox_distance_shoreline.values[~ds.drogue_presence.values]
+ve = ds.ve.values[~ds.drogue_presence.values]
+vn = ds.vn.values[~ds.drogue_presence.values]
+velocities_undrogued, std_undrogued = get_velocity_and_std(aprox_distances, ve, vn, distances)
 
 #%%
-fig, ax = plt.subplots(figsize=(10, 5))
-ax.bar(distances, velocities, width=-delta_km*0.8, align='edge', edgecolor='k', color='b')
+fig, ax = plt.subplots(figsize=(10, 5), dpi=300)
+width = delta_km * 0.35  # width of the bars
+ax.bar(distances - width/2, velocities_drogued, width=width, yerr=std_drogued, align='center', edgecolor='k', color='b', label='Drogued')
+ax.bar(distances + width/2, velocities_undrogued, width=width, yerr=std_undrogued, align='center', edgecolor='k', color='r', label='Undrogued')
+
 ax.set_xlabel('Distance to the shoreline (km)')
 ax.set_ylabel('Mean velocity (m/s)')
+plt.legend()
+plt.grid()
 
 plt.savefig(f'figures/bar_plot_mean_velocity_distance_{delta_km}_{max_km}.png')
 plt.show()
+
+
