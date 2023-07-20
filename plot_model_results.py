@@ -20,7 +20,7 @@ remove_coastal_type = False
 undersampling = False
 
 a_tree = 0.9106796116504854
-a_rf = 0.9009708737864077
+a_rf = 0.9184466019417475
 
 bar_heights.append(a_tree)
 xtick_labels.append('Tree - all')
@@ -44,7 +44,7 @@ xtick_labels.append('Random forest\nMinimum features')
 #%%
 plt.bar(xtick_labels, bar_heights)
 plt.ylabel('Accuracy score')
-plt.ylim([0.9, 0.9125])
+plt.ylim([0.9, 0.92])
 plt.xticks(rotation=90)
 
 plt.tight_layout()
@@ -53,13 +53,6 @@ plt.savefig('figures/model_results.png', dpi=300, bbox_inches='tight')
 plt.show()
 
 #%%
-remove_tidal = True
-remove_directionality = True
-remove_coastal_type = True
-undersampling = True
-
-a_tree = 0.7126213592233009
-a_rf = 0.8310679611650486
 
 bar_heights.append(a_tree)
 xtick_labels.append('Tree\nMinimum features\nundersampling')

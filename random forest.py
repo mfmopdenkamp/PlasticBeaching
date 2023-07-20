@@ -157,7 +157,7 @@ try:
                                            f'{undersampling}_{remove_coastal_type}')
     grid_search_rf = pickm.load_pickle(pickle_name)
 except FileNotFoundError:
-    param_grid = {'n_estimators':[50, 100, 200, 300], 'min_samples_split':[10, 20, 40, 80], 'max_depth':[None, 5, 10, 20],
+    param_grid = {'n_estimators':[50, 100, 200], 'min_samples_split':[10, 20, 40, 80], 'max_depth':[None, 5, 10, 20],
                   'max_features':[None, 'sqrt', 'log2'], 'min_samples_leaf': [1, 2, 5, 10, 20]}
 
     grid_search_rf = HalvingGridSearchCV(RandomForestClassifier(), param_grid=param_grid, verbose=1)

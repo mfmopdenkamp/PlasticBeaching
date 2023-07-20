@@ -27,7 +27,6 @@ for tidal_contituent in ['m2', 'm4', 's2', 'n2', 'k1', 'k2', 'o1', 'p1', 'q1']:
 
         new_column[i] = ds.hRe.values[i_lon, i_lat]
 
-
     df_segments[f'{tidal_contituent}_tidal_elevation_mm'] = new_column
 
     ds.close()

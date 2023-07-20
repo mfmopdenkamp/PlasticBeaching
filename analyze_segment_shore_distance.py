@@ -62,10 +62,10 @@ plt.plot(shore_distance_thresholds/1000, y_fit, label='Fitted power function')
 # plt.plot(shore_distance_thresholds/1000, y_fit2, label='Fitted exponential function')
 plt.plot(shore_distance_thresholds/1000, y_fit3, label='Fitted exponential function')
 plt.xlabel('shore distance threshold [km]')
-plt.ylabel('Beaching probability')
+plt.ylabel('Grounding probability')
 plt.legend()
 plt.grid()
-plt.savefig('figures/beaching_probability_vs_shore_distance_threshold.png', dpi=300)
+plt.savefig('figures/grounding_probability_vs_shore_distance_threshold.png', dpi=300)
 plt.show()
 #%%
 coast_types = ['shore', 'beach', 'bedrock', 'wetland']
@@ -158,6 +158,7 @@ def plot_probs(version=0):
     plt.tight_layout(rect=[0, 0.01, 1, 1])
     plt.savefig(f'figures/grounding_prob_vs_score_threshold_{("smaller" if version == 0 else "larger")}.png', dpi=300)
     plt.show()
+
 
 plot_probs(version=0)
 plot_probs(version=1)
