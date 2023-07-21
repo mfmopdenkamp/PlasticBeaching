@@ -184,6 +184,21 @@ with open('models_results.txt', 'a') as f:
     f.write(f'a_tree = {a_score_tree}\n')
     f.write(f'a_rf = {a_score_rf}\n')
     f.write('\n')
+    f.write(f'p_majority = {p_score_all_false}\n')
+    f.write(f'p_dist = {p_score_base}\n')
+    f.write(f'p_tree = {p_score_tree}\n')
+    f.write(f'p_rf = {p_score_rf}\n')
+    f.write('\n')
+    f.write(f'r_majority = {r_score_all_false}\n')
+    f.write(f'r_dist = {r_score_base}\n')
+    f.write(f'r_tree = {r_score_tree}\n')
+    f.write(f'r_rf = {r_score_rf}\n')
+    f.write('\n')
+    f.write(f'f1_majority = {f1_score_all_false}\n')
+    f.write(f'f1_dist = {f1_score_base}\n')
+    f.write(f'f1_tree = {f1_score_tree}\n')
+    f.write(f'f1_rf = {f1_score_rf}\n')
+    f.write('\n')
     f.write(f'a_tree_train = {a_score_tree_train}\n')
     f.write(f'a_rf_train = {a_score_rf_train}\n')
     f.write('\n')
@@ -200,12 +215,12 @@ with open('models_results.txt', 'a') as f:
 
 #%% plot the best features
 
+
 def plot_feature_importances(importances):
     top = x.shape[1] // 2
     indices = np.argsort(importances)[::-1][:top]
 
     plt.figure(figsize=(7, 5))
-    plt.title("Feature importances with standard deviations")
     plt.barh(range(top), importances[indices], align="center")
     plt.yticks(range(top), x.columns[indices])
     plt.ylim([-1, top])
@@ -216,4 +231,4 @@ def plot_feature_importances(importances):
     plt.show()
 
 
-
+plot_feature_importances(grid_search_rf.best_estimator_.feature_importances_)
