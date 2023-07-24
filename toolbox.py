@@ -3,8 +3,24 @@ import matplotlib.pyplot as plt
 import geopandas as gpd
 import math
 from tqdm import tqdm
-import time
-from scipy.interpolate import griddata
+import pandas as pd
+
+
+colors = [
+        (0, 0, 0),              # black
+        (0, 0.147, 0.698),    # blue
+        (0.902, 0.624, 0),  # gold
+        (0.875, 0.088, 0.012),  # red
+        (0.002, 0.586, 0.09),   # green
+        (0.016, 0.494, 0.822),  # sky blue
+        (0.596, 0.306, 0.639),  # purple
+        (1, 0.498, 0.3),          # orange
+        (0.659, 0.439, 0.204),  # brown
+        (0.337, 0.337, 0.337),  # gray
+    ]
+
+
+markers = ['o', 'v', 's', 'D', 'P', 'X', 'd', 'p', 'h', '8']
 
 
 def end_date_2_years(ds_end_date):
@@ -34,25 +50,6 @@ def dataset2geopandas(lats, lons, df_shore):
                            crs='epsg:4326')
     gdf.to_crs(df_shore.crs, inplace=True)
     return gdf
-
-
-def interpolate_drifter_location(df_raster, ds_drifter, method='linear'):
-    # Drifter locations (longitude and latitude)
-    drifter_lon = ds_drifter.longitude.values
-    drifter_lat = ds_drifter.latitude.values
-
-    # Shore distances (longitude, latitude and distance to the shore)
-    raster_lon = df_raster.longitude.values
-    raster_lat = df_raster.latitude.values
-    raster_dist = df_raster.distance.values
-
-    # Interpolate the drifter locations onto the raster
-    start = time.time()
-    print('Started interpolation...', end='')
-    drifter_dist = griddata((raster_lon, raster_lat), raster_dist, (drifter_lon, drifter_lat), method=method)
-    print(f'Done. Elapsed time {np.round(time.time() - start, 2)}s')
-
-    return drifter_dist
 
 
 def find_shortest_distance(ds_gdp, gdf_shoreline):
@@ -276,18 +273,153 @@ def probability_distance_sophie(ds, verbose=True):
         plt.show()
 
 
-def get_drogue_presence(ds):
+def get_drogue_presence(ds, coords=False):
+    # only works for full dataset where rowsize is true!
+
     obs = ds.obs.values
     drogue_lost_dates = ds.drogue_lost_date.values
 
     ids = ds.ids.values
-    IDs = ds.ID.values
     drogue_presence = np.ones(len(obs), dtype=bool)
-    for (drogue_lost_date, ID) in zip(drogue_lost_dates, IDs):
+    if coords:
+        latitude = ds.latitude.values
+        longitude = ds.longitude.values
+        lats = np.zeros(len(ds.traj), dtype=np.float32)
+        lons = np.zeros(len(ds.traj), dtype=np.float32)
+
+    traj_idx = np.insert(np.cumsum(ds.rowsize.values), 0, 0)
+    for i, (drogue_lost_date) in enumerate(tqdm(drogue_lost_dates)):
         # if drogue lost date is not known, assume it is always present
         if not np.isnat(drogue_lost_date):
-            obs_id = obs[ids == ID]
+            obs_id = obs[slice(traj_idx[i], traj_idx[i + 1])]
             times = ds.time.values[obs_id]
-            drogue_presence[obs_id] = np.where(times > drogue_lost_date, False, True)
+            mask = times < drogue_lost_date
+            drogue_presence[obs_id] = mask
+            if coords:
+                obs_change = obs_id[np.argmin(np.diff(mask))] + 1
+                lats[i] = latitude[obs_change]
+                lons[i] = longitude[obs_change]
 
-    return drogue_presence
+    if not coords:
+        return drogue_presence
+    else:
+        return drogue_presence, lats, lons
+
+
+def get_density_grid(latitude, longitude, xlim=None, ylim=None, latlon_box_size=2, lat_box_size=None, lon_box_size=None):
+    # filter lat lons on xlim and ylim
+    if xlim is not None:
+        xlim_mask = (longitude > xlim[0]) & (longitude < xlim[1])
+        latitude = latitude[xlim_mask]
+        longitude = longitude[xlim_mask]
+    if ylim is not None:
+        ylim_mask = (latitude > ylim[0]) & (latitude < ylim[1])
+        latitude = latitude[ylim_mask]
+        longitude = longitude[ylim_mask]
+
+    df = pd.DataFrame({'lat': latitude, 'lon': longitude})
+
+    if latlon_box_size is not None:
+        lat_box_size = latlon_box_size
+        lon_box_size = latlon_box_size
+
+    # Calculate the box indices for each coordinate
+    df['lat_box'] = ((df['lat'] + 90) // lat_box_size)
+    df['lon_box'] = ((df['lon'] + 180) // lon_box_size)
+
+    # reduce lon_box to 0-max_lat_box_id and lat_box to 0-max_lon_box_id for drifters exactly on 90N or 180E
+    df['lon_box'] = df['lon_box'] % int(360 / lon_box_size)
+    df['lat_box'] = df['lat_box'] % int(180 / lat_box_size)
+
+    # Group the coordinates by box indices and count the number of coordinates in each box
+    grouped = df.groupby(['lat_box', 'lon_box']).size().reset_index(name='count')
+
+    # Create an empty grid to store the density values
+    density_grid = np.zeros((int(180 / lat_box_size), int(360 / lon_box_size)))
+
+    # Fill the density grid with the count values
+    for _, row in grouped.iterrows():
+        i_lat_box = int(row['lat_box'])
+        i_lon_box = int(row['lon_box'])
+
+        count = row['count']
+        density_grid[i_lat_box, i_lon_box] = count
+
+    X, Y = np.meshgrid(np.arange(-180, 180, lon_box_size) + lon_box_size / 2,
+                       np.arange(-90, 90, lat_box_size) + lat_box_size / 2)
+
+    return X, Y, density_grid
+
+
+def normalize_array(arr):
+    # Shift the array to have only positive values
+    shifted_arr = arr - np.min(arr)
+
+    # Scale the shifted array to the range [0, 1]
+    normalized_arr = shifted_arr / np.max(shifted_arr)
+
+    return normalized_arr
+
+
+def get_probabilities(df, column_names, split_points):
+    n = df.shape[0]
+    df['all'] = np.zeros(n)
+    for column in column_names:
+        df['all'] += df[column]
+    column_names.insert(0, 'all')
+
+    grounding_prob_smaller = {}
+    grounding_prob_larger = {}
+    for column in column_names:
+        df[column] = normalize_array(df[column])
+        grounding_prob_smaller[column] = np.zeros(len(split_points))
+        grounding_prob_larger[column] = np.zeros(len(split_points))
+        for i, score_threshold in enumerate(split_points):
+            df_filtered = df[df[column] < score_threshold]
+            df_filtered_larger = df[df[column] > score_threshold]
+            grounding_prob_smaller[column][i] = df_filtered.beaching_flag.mean()
+            grounding_prob_larger[column][i] = df_filtered_larger.beaching_flag.mean()
+
+    return grounding_prob_smaller, grounding_prob_larger
+
+
+def get_impurity(node):
+    """
+    :param node: data set on which to calculate
+    :return: impurity based on gini-index
+    """
+    n = len(node)
+    if n == 0:
+        return 0
+    else:
+        return np.sum(node)/n * (1 - np.sum(node)/n)
+
+
+def get_impurity_reduction(df, column_names, split_points):
+    n = df.shape[0]
+    df['all'] = np.zeros(n)
+    for column in column_names:
+        df['all'] += df[column]
+    column_names.insert(0, 'all')
+
+    impurity_reductions = {}
+    original_impurity = get_impurity(df.beaching_flag)
+    for column in column_names:
+        df[column] = normalize_array(df[column])
+        impurity_reductions[column] = np.zeros(len(split_points))
+        for i, split_point in enumerate(split_points):
+            if split_point == 1 or split_point == 0:
+                impurity_reductions[column][i] = 0
+                continue
+            left_child = df.beaching_flag[df[column] < split_point]
+            right_child = df.beaching_flag[df[column] > split_point]
+            reduction = original_impurity - (len(left_child) / n * get_impurity(left_child) + len(right_child) / n * get_impurity(right_child))
+            impurity_reductions[column][i] = reduction
+
+    return impurity_reductions
+
+
+def hard_coded_exp_fit(x):
+    prob = 0.5 * np.exp(-0.0003 * x) + 0.1
+    output = (prob > 0.5)
+    return output

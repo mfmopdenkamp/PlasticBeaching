@@ -1,15 +1,16 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
-import tqdm
 from file_names import *
 
-df = pd.read_csv(f'data/{file_name_1}.csv',
-                 parse_dates=['time_start', 'time_end'], index_col='ID',
-                 infer_datetime_format=True)
+df = pd.read_csv(f'{file_name_1}', parse_dates=['time'], infer_datetime_format=True)
+
+# # select only october 2003
+# df = df[(df.time >= '2003-10-01') & (df.time < '2003-10-30')]
+# prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
 
 prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
-# prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
+
 
 n = df.shape[0]
 abs_mean = np.zeros(n)
@@ -25,10 +26,9 @@ abs_std = np.zeros(n)
 u_std = np.zeros(n)
 v_std = np.zeros(n)
 
-
 prev_file_paths = []
-for i_event, subtraj in tqdm(enumerate(df.itertuples())):
-    times = pd.date_range(subtraj.time_start, subtraj.time_end, freq='H')
+for i_event, drifter_state in enumerate(df.itertuples()):
+    times = pd.date_range(drifter_state.time, drifter_state.time + pd.Timedelta(days=1), freq='H')
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
     file_paths = [prefix_era5_data+yymm+'.nc' for yymm in YYYYMM_keys]
     if file_paths != prev_file_paths:
@@ -38,8 +38,8 @@ for i_event, subtraj in tqdm(enumerate(df.itertuples())):
             ds = xr.open_dataset(file_paths[0])
 
     # interpolate lons and lats
-    lat = ds.latitude[np.argmin(abs(ds.latitude.values - subtraj.latitude_start))]
-    lon = ds.longitude[np.argmin(abs(ds.longitude.values - subtraj.longitude_start))]
+    lat = ds.latitude[np.argmin(abs(ds.latitude.values - drifter_state.latitude))]
+    lon = ds.longitude[np.argmin(abs(ds.longitude.values - drifter_state.longitude))]
     ds = ds.sel(time=times, latitude=lat, longitude=lon)
     abs_speed = np.hypot(ds.u10, ds.v10)
     abs_mean[i_event] = np.mean(abs_speed)
@@ -71,4 +71,4 @@ df = df.assign(wind10m_abs_mean=abs_mean,
                wind10m_v_std=v_std
                )
 
-df.to_csv(f'data/{file_name_2}.csv', index=False)
+df.to_csv(f'{file_name_2}.csv', index=False)

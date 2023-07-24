@@ -2,7 +2,6 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import toolbox as a
-import matplotlib
 import matplotlib.pyplot as plt
 import cartopy
 import cartopy.crs as ccrs
@@ -11,37 +10,33 @@ from file_names import *
 
 plot_test = True
 
-if os.path.exists('data/' + file_name_4):
-    df_segments = pd.read_csv('data/'+file_name_4, parse_dates=['time_start', 'time_end'])
-else:
+df_segments = pd.read_csv(f'data/{file_name_3}.csv', parse_dates=['time_start', 'time_end'])
 
-    df_segments = pd.read_csv('data/' + file_name_3, parse_dates=['time_start', 'time_end'])
+for tidal_contituent in ['m2', 'm4', 's2', 'n2', 'k1', 'k2', 'o1', 'p1', 'q1']:
+    ds = xr.open_dataset(f'data/tidals/h_{tidal_contituent}_tpxo9_atlas_30.nc')
 
-    for tidal_contituent in ['m2', 'm4', 's2', 'n2', 'k1', 'k2', 'o1', 'p1', 'q1']:
-        ds = xr.open_dataset(f'data/tidals/h_{tidal_contituent}_tpxo9_atlas_30.nc')
+    new_column = np.zeros(df_segments.shape[0], dtype=int)
+    lats = df_segments.latitude_start.values
+    lons = a.longitude_translator(df_segments.longitude_start.values.copy())
+    for i, (lat, lon) in enumerate(zip(lats, lons)):
 
-        new_column = np.zeros(df_segments.shape[0], dtype=int)
-        lats = df_segments.latitude_start.values
-        lons = a.longitude_translator(df_segments.longitude_start.values.copy())
-        for i, (lat, lon) in enumerate(zip(lats, lons)):
+        # TODO: interpolate linearly between the four closest points
 
-            # TODO: interpolate linearly between the four closest points
+        i_lat = np.argmin(abs(ds.lat_z.values - lat))
+        i_lon = np.argmin(abs(ds.lon_z.values - lon))
 
-            i_lat = np.argmin(abs(ds.lat_z.values - lat))
-            i_lon = np.argmin(abs(ds.lon_z.values - lon))
+        new_column[i] = ds.hRe.values[i_lon, i_lat]
 
-            new_column[i] = ds.hRe.values[i_lon, i_lat]
+    df_segments[f'{tidal_contituent}_tidal_elevation_mm'] = new_column
 
+    ds.close()
 
-        df_segments[f'{tidal_contituent}_tidal_elevation_mm'] = new_column
-
-        ds.close()
-
-    df_segments.to_csv('data/'+file_name_4, index=False)
+df_segments.to_csv(f'data/{file_name_4}.csv', index_label='ID')
+print(f'Tidal elevations added to {file_name_4}.csv')
 
 
 if plot_test:
-    ds_m2 = xr.load_dataset('data/h_m2_tpxo9_atlas_30.nc')
+    ds_m2 = xr.load_dataset('data/tidals/h_m2_tpxo9_atlas_30.nc')
     plt.ioff()
     # matplotlib.use('TkAgg')
     def plot_m2_tidal_elevation(lon, lat, time, m2_elevation):

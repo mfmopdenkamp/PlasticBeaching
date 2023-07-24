@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
-import pandas as pd
-
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+from cartopy.io.img_tiles import Stamen
 import load_data
 import numpy as np
 from tqdm import tqdm
@@ -13,8 +15,7 @@ death_type_colors = {0: 'r', 1: 'g', 2: 'b', 3: 'y', 4: 'c', 5: 'm', 6: 'aquamar
 def get_sophie_subplots(figsize=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
     """ This function sets up a figure (fig and ax) for plotting the data in the Galapagos region.
     This set-up contains a background terrain map of the Galapagos region, extending from lat (-2,1) and lon (-93, -88.5)"""
-    from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-    from cartopy.io.img_tiles import Stamen
+
 
     fig = plt.figure(figsize=figsize, dpi=300)
 
@@ -37,22 +38,34 @@ def get_sophie_subplots(figsize=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), tit
     return fig, ax
 
 
-def get_marc_subplots(size=(12, 8), extent=(-92.5, -88.5, -1.75, 0.75), title=''):
+def get_marc_subplots(size=(12, 8), extent=(-180, 180, -85, 85), title='', show_coastlines=True, ax=None):
     """ This function sets up a figure (fig and ax) for plotting the data in lonlatbox of the extent."""
 
-    fig = plt.figure(figsize=size, dpi=300)
+    if ax is None:
+        fig = plt.figure(figsize=size, dpi=300)
+        ax = plt.axes(projection=ccrs.PlateCarree())
+        return_fig = True
+    else:
+        return_fig = False
 
-    ax = plt.axes(projection=ccrs.PlateCarree())
-
+    tiler = Stamen('terrain-background')
     ax.set_extent(extent, crs=ccrs.Geodetic())
+
+    zoom = 10  # trial and error number, too big, and things don't load, too small, and map is low resolution
+    ax.add_image(tiler, zoom)
 
     plt.title(title, fontsize=20)
 
-    # gl = ax.gridlines(draw_labels=True)
-    # gl.top_labels = gl.right_labels = False
+    if show_coastlines:
+        ax.coastlines()
 
-    return fig, ax
+    gl = ax.gridlines(draw_labels=True)
+    gl.top_labels = gl.right_labels = False
 
+    if return_fig:
+        return fig, ax
+    else:
+        return ax
 
 def plot_trajectories_death_type(ds, s=2):
     """given a dataset, plot the trajectories on a map"""
@@ -70,9 +83,6 @@ def plot_trajectories_death_type(ds, s=2):
     ax.set_xlabel('Longitude E')
     plt.tight_layout()
     plt.show()
-
-
-
 
 
 def plot_galapagos_map_distances(ds, title=''):
@@ -130,6 +140,9 @@ def plot_death_type_bar(ds):
     ax.set_xlabel('death type')
     ax.set_ylabel('# drifters')
     plt.xticks(death_types)
+
+    plt.savefig('figures/death_type_bar.png', dpi=300, bbox_inches='tight')
+
     plt.show()
 
 
@@ -156,13 +169,43 @@ def plot_uniques_bar(ds_array, xlabel):
     plt.show()
 
 
+def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False, latitude=None,
+                        longitude=None, title=None, ax=None, crs=ccrs.PlateCarree()):
+    if ax is None:
+        fig = plt.figure(figsize=(14, 9), dpi=300)
+        ax = plt.axes(projection=crs)
+
+    ax.set_global()
+    ax.set_ylim(ylim)
+    if xlim is not None:
+        ax.set_xlim(xlim)
+    ax.coastlines()
+
+    gl = ax.gridlines(draw_labels=True)
+    gl.xformatter = LONGITUDE_FORMATTER
+    gl.yformatter = LATITUDE_FORMATTER
+    gl.top_labels = gl.right_labels = False
+
+    im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=colors.LogNorm(), transform=crs)
+    if scatter:
+        ax.scatter(longitude, latitude, s=0.1, color='b', alpha=0.5, transform=crs)
+    # Add a colorbar
+    cbar = plt.colorbar(im, ax=ax,
+                        ticks=[0, 1, 10, 100, 1000, 10000], format=ticker.ScalarFormatter(), shrink=0.6)
+    cbar.set_label('Density')
+
+    if title is not None:
+        ax.set_title(title)
+
+
 if __name__ == '__main__':
     gdp = load_data.drifter_data_six_hourly(30000)
 
     ax = plt.axes(projection=ccrs.PlateCarree())
     for ID in gdp['ID'].unique():
-        ax.plot(gdp[gdp['ID'] == ID]['Longitude'], gdp[gdp['ID'] == ID]['Latitude'], transform=ccrs.PlateCarree())
-        break
+        if ID in [300234061407950]:
+            ax.plot(gdp[gdp['ID'] == ID]['Longitude'], gdp[gdp['ID'] == ID]['Latitude'], transform=ccrs.PlateCarree())
+
 
     ax.coastlines()
     plt.show()

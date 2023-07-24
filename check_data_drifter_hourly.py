@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
-import analyzer
+import toolbox as tb
 import plotter
 import load_data
 
 
-ds = load_data.get_ds_drifters('gdp_random_subset_1')
+ds = load_data.get_ds_drifters()
+
+print(ds.info())
 
 for item in ds.data_vars.items():
     print(f'{item[0]} :\t {ds[item[0]].attrs}\n')
@@ -16,18 +17,24 @@ for item in ds.data_vars.items():
     #     except:
     #         pass
 
+#%%
 plotter.plot_death_type_bar(ds)
 
-times = analyzer.days_without_drogue(ds)
-
-plt.hist(times[np.where((times < 1000) * (times > 0))], bins=100)
+times = tb.days_without_drogue(ds)
+plt.figure(figsize=(10, 6))
+plt.hist(times, bins=100)
 plt.xlabel('time lost drogue [days]')
-# plt.xlim([0, 100])
+
 plt.ylabel('# drifters')
-# plt.semilogy()
+
+# plt.yscale('log')
+
+plt.savefig('figures/time_lost_drogue.png', dpi=300)
+
 plt.show()
 
 
+#%%
 def find_last_points(ds):
     index_last_points = []
     id_prev = ds.ID.values[0]
