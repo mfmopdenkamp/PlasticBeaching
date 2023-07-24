@@ -1,4 +1,5 @@
 import numpy as np
+from numba import jit
 import pandas as pd
 import math
 import load_data
@@ -159,13 +160,26 @@ print('Remaining number of beaching events:', df_seg3['beaching_flag'].sum())
 
 
 # %% Calculate the inner-product of the wind vector and the vector to the nearest shore
-inproducts = np.empty(len(df_seg3))
-for i, (de, dn, d, u, v) in enumerate(
-        zip(df_seg3['shortest_distance_e'], df_seg3['shortest_distance_n'], df_seg3['shortest_distance'], df_seg3['wind10m_u_mean'],
-            df_seg3['wind10m_v_mean'])):
-    inproducts[i] = de / d * u + dn / d * v
+@jit(nopython=True)
+def get_inproducts(x_shore, y_shore, wind_u, wind_v):
+    inproducts = np.empty(len(x_shore))
+    for i, (x, y, u, v) in enumerate(zip(x_shore, y_shore, wind_u, wind_v)):
+        d = x**2 + y**2
+        w = u**2 + v**2
 
-df_seg3['inproduct_wind_nearest_shore'] = inproducts
+        inproducts[i] = x / d * u / w + y / d * v / w
+    return inproducts
+
+
+# inproducts = np.empty(len(df_seg3))
+# for i, (de, dn, d, u, v) in enumerate(
+#         zip(df_seg3['shortest_distance_e'], df_seg3['shortest_distance_n'], df_seg3['shortest_distance'], df_seg3['wind10m_u_mean'],
+#             df_seg3['wind10m_v_mean'])):
+#     inproducts[i] = de / d * u + dn / d * v
+
+df_seg3['inproduct_wind_nearest_shore'] = get_inproducts(df_seg3['shortest_distance_e'], df_seg3['shortest_distance_n'],
+                                                         df_seg3['wind10m_u_mean'],
+                                                         df_seg3['wind10m_v_mean'])
 
 
 df_seg3.to_csv(f'data/{file_name_3}.csv', index_label='ID')

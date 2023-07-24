@@ -218,11 +218,11 @@ with open('models_results.txt', 'a') as f:
 
 def plot_feature_importances(importances):
     top = x.shape[1] // 2
-    indices = np.argsort(importances)[::-1][:top]
+    indices = np.argsort(importances)
 
     plt.figure(figsize=(7, 5))
-    plt.barh(range(top), importances[indices], align="center")
-    plt.yticks(range(top), x.columns[indices])
+    plt.barh(range(top), importances[indices][-top:], align="center")
+    plt.yticks(range(top), x.columns[indices][-top:])
     plt.ylim([-1, top])
     plt.tight_layout()
 
@@ -232,3 +232,21 @@ def plot_feature_importances(importances):
 
 
 plot_feature_importances(grid_search_rf.best_estimator_.feature_importances_)
+
+#%% PDP plots
+from sklearn.inspection import PartialDependenceDisplay
+
+# Let's say 'rf' is your trained RandomForestClassifier, and 'X' is your features DataFrame
+
+pdp_display = PartialDependenceDisplay.from_estimator(
+    grid_search_rf.best_estimator_,                # trained model
+    x_train,                 # features
+    features=['velocity']  # features to plot
+)
+
+pdp_display.plot()
+
+plt.savefig('figures/pdp_velocity.png', dpi=300)
+plt.show()
+
+

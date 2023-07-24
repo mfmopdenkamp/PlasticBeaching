@@ -1,4 +1,4 @@
-import load_data
+from numba import jit
 import picklemanager as pickm
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ ds_undrogued_gps = ds_undrogued.isel(traj=traj, obs=obs_undrogued_gps)
 n_obs = len(ds.obs)
 n_traj = len(ds.traj)
 
-
+@jit(nopython=True)
 def get_fractions(ds, distances):
     traj_far = np.zeros(len(distances))
     obs_far = np.zeros(len(distances))
@@ -48,24 +48,23 @@ fractions_traj_close_undrogued_gps, fractions_obs_close_undrogued_gps =\
 #%%
 fig, axs = plt.subplots(2, 2, sharex='col', figsize=(10, 10), dpi=300)
 
-axs[0, 0].plot(distances_far, fractions_traj_far, label='All')
-axs[0, 0].plot(distances_far, fractions_traj_far_undrogued, label='Undrogued')
-axs[0, 0].plot(distances_far, fractions_traj_far_undrogued_gps, label='Undrogued GPS')
-axs[1, 0].plot(distances_far, fractions_obs_far, label='All')
-axs[1, 0].plot(distances_far, fractions_obs_far_undrogued, label='Undrogued')
-axs[1, 0].plot(distances_far, fractions_obs_far_undrogued_gps, label='Undrogued GPS')
-axs[0, 1].plot(distances_close, fractions_traj_close, label='All')
-axs[0, 1].plot(distances_close, fractions_traj_close_undrogued, label='Undrogued')
-axs[0, 1].plot(distances_close, fractions_traj_close_undrogued_gps, label='Undrogued GPS')
-axs[1, 1].plot(distances_close, fractions_obs_close, label='All')
-axs[1, 1].plot(distances_close, fractions_obs_close_undrogued, label='Undrogued')
-axs[1, 1].plot(distances_close, fractions_obs_close_undrogued_gps, label='Undrogued GPS')
+axs[0, 0].plot(distances_far, fractions_traj_far*n_traj, label='All')
+axs[0, 0].plot(distances_far, fractions_traj_far_undrogued*n_traj, label='Undrogued')
+axs[0, 0].plot(distances_far, fractions_traj_far_undrogued_gps*n_traj, label='Undrogued GPS')
+axs[1, 0].plot(distances_far, fractions_obs_far*n_obs, label='All')
+axs[1, 0].plot(distances_far, fractions_obs_far_undrogued*n_obs, label='Undrogued')
+axs[1, 0].plot(distances_far, fractions_obs_far_undrogued_gps*n_obs, label='Undrogued GPS')
+axs[0, 1].plot(distances_close, fractions_traj_close*n_traj, label='All')
+axs[0, 1].plot(distances_close, fractions_traj_close_undrogued*n_traj, label='Undrogued')
+axs[0, 1].plot(distances_close, fractions_traj_close_undrogued_gps*n_traj, label='Undrogued GPS')
+axs[1, 1].plot(distances_close, fractions_obs_close*n_obs, label='All')
+axs[1, 1].plot(distances_close, fractions_obs_close_undrogued*n_obs, label='Undrogued')
+axs[1, 1].plot(distances_close, fractions_obs_close_undrogued_gps*n_obs, label='Undrogued GPS')
 
-axs[0, 0].set_ylabel('Trajectories')
-axs[1, 0].set_ylabel('Observations')
+axs[0, 0].set_ylabel('Number of trajectories')
+axs[1, 0].set_ylabel('Number of observations')
 
-fig.text(0.5, 0.04, 'Maximum distance to the shoreline (km)', ha='center')
-fig.text(0.04, 0.5, 'Fraction of total', va='center', rotation='vertical')
+fig.text(0.5, 0.07, 'Maximum distance to the shoreline (km)', ha='center')
 
 axs[0, 0].set_title('Far from the shore')
 axs[0, 1].set_title('Close to the shore')
@@ -75,6 +74,7 @@ for ax in axs.flat:
 axs[0,0].legend()
 
 plt.subplots_adjust(hspace=0.1)
+
 plt.savefig('figures/distance_fractions.png')
 
 plt.show()
