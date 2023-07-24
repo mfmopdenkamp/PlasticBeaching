@@ -241,7 +241,7 @@ from sklearn.inspection import PartialDependenceDisplay
 pdp_display = PartialDependenceDisplay.from_estimator(
     grid_search_rf.best_estimator_,                # trained model
     x_train,                 # features
-    features=['velocity']  # features to plot
+    features=['velocity', 'shortest_distance']  # features to plot
 )
 
 pdp_display.plot()
@@ -249,4 +249,15 @@ pdp_display.plot()
 plt.savefig('figures/pdp_velocity.png', dpi=300)
 plt.show()
 
+
+pdp_display = PartialDependenceDisplay.from_estimator(
+    grid_search_rf.best_estimator_,                # trained model
+    x_train,                 # features
+    features=['shortest_distance']  # features to plot
+)
+
+pdp_display.plot()
+
+plt.savefig('figures/pdp_shortest_distance.png', dpi=300)
+plt.show()
 
