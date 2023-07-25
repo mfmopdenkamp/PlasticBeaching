@@ -89,6 +89,7 @@ v_std = np.zeros(len(df))
 start = time()
 i_feature = 0
 for YYYYMM in unique_months:
+    print(f'Processing {YYYYMM}...')
     df_sel = df[df['time'].dt.strftime('%Y%m') == YYYYMM]
     if include_overlapping_months:
         last_date = df_sel.time.iloc[-1]
