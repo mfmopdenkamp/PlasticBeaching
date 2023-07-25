@@ -1,16 +1,26 @@
 import pandas as pd
 import numpy as np
 import xarray as xr
+from time import time
 from file_names import *
+
+local = False
 
 df = pd.read_csv(f'{file_name_1}', parse_dates=['time'], infer_datetime_format=True)
 
-# select only from 1993
-df = df[df.time >= '1993-01-01']
-prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
+# local test run: select october 2003 only
+if local:
+    df = df[(df.time >= '2003-10-01') & (df.time < '2003-10-30')]
+else:
+    # ERA5 data on lorenz is available from 1993 onwards only
+    df = df[df.time >= '1993-01-01']
 
-prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
 
+
+print('Total number of ERA5 files to load based on unique months:'
+      f'num_unique_months = {df.time.dt.to_period("M").nunique()}')
+
+#%%
 n = df.shape[0]
 abs_mean = np.zeros(n)
 u_mean = np.zeros(n)
@@ -25,7 +35,13 @@ abs_std = np.zeros(n)
 u_std = np.zeros(n)
 v_std = np.zeros(n)
 
+if local:
+    prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
+else:
+    prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
+
 prev_file_paths = []
+start = time()
 for i_event, drifter_state in enumerate(df.itertuples()):
     times = pd.date_range(drifter_state.time, drifter_state.time + pd.Timedelta(days=1), freq='H')
     YYYYMM_keys = np.unique([f'{year}{("0" if month < 10 else "")}{month}' for year, month in zip(times.year, times.month)])
@@ -55,6 +71,9 @@ for i_event, drifter_state in enumerate(df.itertuples()):
     v_std[i_event] = np.std(ds.v10)
 
     file_path_prev = file_paths
+
+total_time = time() - start
+print(f'Total time to run for loop loading ERA5 data: {total_time:.2f} seconds')
 
 df = df.assign(wind10m_abs_mean=abs_mean,
                wind10m_u_mean=u_mean,
