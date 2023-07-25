@@ -5,12 +5,11 @@ from file_names import *
 
 df = pd.read_csv(f'{file_name_1}', parse_dates=['time'], infer_datetime_format=True)
 
-# # select only october 2003
-# df = df[(df.time >= '2003-10-01') & (df.time < '2003-10-30')]
-# prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
+# select only from 1993
+df = df[df.time >= '1993-01-01']
+prefix_era5_data = 'data/reanalysis-era5-single-level_wind10m_'
 
 prefix_era5_data = '/storage/shared/oceanparcels/input_data/ERA5/reanalysis-era5-single-level_wind10m_'
-
 
 n = df.shape[0]
 abs_mean = np.zeros(n)
