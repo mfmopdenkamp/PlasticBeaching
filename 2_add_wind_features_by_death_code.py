@@ -126,4 +126,4 @@ df = df.assign(wind10m_abs_mean=abs_mean,
                wind10m_v_std=v_std
                )
 
-df.to_csv(f'{file_name_2}.csv', index=False)
+df.to_csv(f'{file_name_2}', index=False)
