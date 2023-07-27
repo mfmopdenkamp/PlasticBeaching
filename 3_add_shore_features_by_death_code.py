@@ -5,8 +5,12 @@ import math
 import picklemanager as pm
 from file_names import *
 
+R_earth = 6371.0 # km
 
 df_states = pd.read_csv(file_name_2, parse_dates=['time'], infer_datetime_format=True)
+
+df_states = df_states[df_states['aprox_distance_shoreline'] < 0.2]  # Only use states that are within 50 km of the shore
+
 gdf_shore = pm.load_pickle(pm.create_pickle_path('shoreline_f_points'))
 gdf_cm = pm.load_pickle(pm.create_pickle_path('coastal_morphology_points'))
 
@@ -39,7 +43,6 @@ for i in range(4, num_fields):
     new_features[:, i] = 0
 
 
-
 # %% Calculate the amount of shore that is upwind
 
 @njit
@@ -50,24 +53,29 @@ def simple_linear_regression(x, y):
     sum_xy = np.sum(x * y)
     sum_xx = np.sum(x * x)
     # calculate slope (b) and intercept (a)
-    b = (n * sum_xy - sum_x * sum_y) / (n * sum_xx - sum_x ** 2)
+    denominator = n * sum_xx - sum_x ** 2
+    if denominator == 0:
+        b = 0
+    else:
+        b = (n * sum_xy - sum_x * sum_y) / denominator
     a = (sum_y - b * sum_x) / n
     return a, b
 
 
 @njit
 def get_lonlatbox(lon, lat, side_length):
-    """side_length in meters"""
-    R_earth = 6371.0  # km
-    lat_length = side_length / (2 * np.pi * R_earth) / 2  # 1 degree latitude is approximately 111.32 km
-    lon_length = side_length / (2 * np.pi * R_earth * np.cos(lat)) / 2  # 1 degree longitude is 111320m * cos(latitude)
+    """side_length in kilometers"""
+    km_per_radian = R_earth * (np.pi/180) # km per radian
+
+    lat_length = side_length / km_per_radian  # convert side length from km to radian
+    lon_length = side_length / (km_per_radian * np.cos(lat))  # adjust for longitude
 
     min_lon = lon - lon_length
-    if min_lon < -180:
-        min_lon += 360
+    if min_lon < -np.pi:
+        min_lon += 2 * np.pi
     max_lon = lon + lon_length
-    if max_lon > 180:
-        max_lon -= 360
+    if max_lon > np.pi:
+        max_lon -= 2 * np.pi
 
     min_lat = lat - lat_length
     max_lat = lat + lat_length
@@ -104,7 +112,6 @@ def add_shore_features(lat_state, lon_state, lat_shore, lon_shore, lat_cm, lon_c
 
     # Strangely, somehow sometimes the shore is not found in the box around the coordinate!
     no_near_shore_mask = np.zeros(len(lat_state), dtype=np.bool_)
-    R_earth = 6371.0 # km
     # Loop over all segments
     for i_state, (lon, lat, wind_u, wind_v, aprox_dist) in enumerate(zip(lon_state, lat_state, u10, v10, aprox_dists)):
 
@@ -158,10 +165,6 @@ def add_shore_features(lat_state, lon_state, lat_shore, lon_shore, lat_cm, lon_c
                 # Calculate angle between wind direction and line connecting points i and j
                 angle = abs(math.atan2(dy, dx) - wind_direction)
 
-                # Make sure angle is between 0 and pi
-                if angle > math.pi:
-                    angle = 2 * math.pi - angle
-
                 for i_area, (alpha, radius) in enumerate(zip(alphas, radii)):
                     if distance <= radius and angle <= alpha / 2:
                             new_features[i_state, i_area] += 1 - distance / radius
@@ -187,10 +190,6 @@ def add_shore_features(lat_state, lon_state, lat_shore, lon_shore, lat_cm, lon_c
 
                 angle = abs(math.atan2(dy, dx) - wind_direction)
 
-                # Make sure angle is between 0 and pi
-                if angle > math.pi:
-                    angle = 2 * math.pi - angle
-
                 n_alphas = len(alphas)
                 for i_area, (alpha, radius) in enumerate(zip(alphas, radii)):
                     if distance <= radius and angle <= alpha / 2:
@@ -212,16 +211,20 @@ map_coasts_to_int = {'Bedrock': 0, 'Wetland': 1, 'Beach': 2}
 vfunc = np.vectorize(lambda x: map_coasts_to_int[x])
 cm_type = vfunc(gdf_cm.Preds.values)
 
+
 features, no_near_shore_mask = add_shore_features(df_states.latitude.values, df_states.longitude.values,
                                                   gdf_shore.latitude.values, gdf_shore.longitude.values,
                                                   gdf_cm.latitude.values, gdf_cm.longitude.values, cm_type,
                                                   df_states.wind10m_u_mean.values, df_states.wind10m_v_mean.values,
                                                   df_states.aprox_distance_shoreline.values, new_features)
-df_state_new = pd.concat([df_states, pd.DataFrame.from_dict(features)], axis=1)
+
+df_new = pd.DataFrame(data=features, columns=['shore_rmsd', 'shore_distance', 'shore_distance_e', 'shore_distance_n'] + area_labels)
+df_new = df_new[~no_near_shore_mask]
+
+df_state_new = pd.concat([df_states, df_new], axis=1)
 
 
 # %% Drop segments where no shore was found (for some reason!!!)
-df_state_new = df_state_new[~no_near_shore_mask]
 
 with open('deleted_segments_no_shore_found', 'w') as f:
     f.write(f'Number of deleted segments because no shore was found: {len(no_near_shore_mask)}\n'

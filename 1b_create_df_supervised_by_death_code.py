@@ -24,8 +24,7 @@ def process_trajectories(trajs, type_deaths, drifter_ids, traj_idx, undrogue_pre
     for j, death_type, drifter_id in zip(trajs, type_deaths, drifter_ids):
         slice_sel = slice(traj_idx[j], traj_idx[j + 1])
         mask_undrogued = undrogue_presence[slice_sel]
-        aprox_dist_sel = aprox_distance_shoreline[slice_sel]
-        mask_undrogued_near_shore = mask_undrogued & (aprox_dist_sel < 120)
+        mask_undrogued_near_shore = mask_undrogued & (aprox_distance_shoreline[slice_sel] < 120)
         n_undrogued_near_shore = mask_undrogued_near_shore.sum()
         if n_undrogued_near_shore > hours_to_forecast:
             vn_sel = vn[slice_sel]
@@ -33,6 +32,7 @@ def process_trajectories(trajs, type_deaths, drifter_ids, traj_idx, undrogue_pre
             latitude_sel = latitudes[slice_sel]
             longitude_sel = longitudes[slice_sel]
             time_sel = times[slice_sel]
+            aprox_dist_sel = aprox_distance_shoreline[slice_sel]
 
             for i in np.arange(hours_to_forecast, n_undrogued_near_shore, hours_to_forecast):
                 state_vn[count] = vn_sel[-i]
