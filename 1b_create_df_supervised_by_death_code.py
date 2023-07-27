@@ -17,13 +17,15 @@ def process_trajectories(trajs, type_deaths, drifter_ids, traj_idx, undrogue_pre
     state_longitude = np.empty(n)
     state_time = np.empty(n)
     state_id = np.empty(n)
+    aprox_dist = np.empty(n)
     state_ground_flag = np.zeros(n, dtype=np.bool_)
 
     count = 0
     for j, death_type, drifter_id in zip(trajs, type_deaths, drifter_ids):
         slice_sel = slice(traj_idx[j], traj_idx[j + 1])
         mask_undrogued = undrogue_presence[slice_sel]
-        mask_undrogued_near_shore = mask_undrogued & (aprox_distance_shoreline[slice_sel] < 120)
+        aprox_dist_sel = aprox_distance_shoreline[slice_sel]
+        mask_undrogued_near_shore = mask_undrogued & (aprox_dist_sel < 120)
         n_undrogued_near_shore = mask_undrogued_near_shore.sum()
         if n_undrogued_near_shore > hours_to_forecast:
             vn_sel = vn[slice_sel]
@@ -38,6 +40,7 @@ def process_trajectories(trajs, type_deaths, drifter_ids, traj_idx, undrogue_pre
                 state_latitude[count] = latitude_sel[-i]
                 state_longitude[count] = longitude_sel[-i]
                 state_time[count] = time_sel[-i]
+                aprox_dist[count] = aprox_dist_sel[-i]
                 state_id[count] = drifter_id
 
                 if death_type == 1 and i == hours_to_forecast:
@@ -46,12 +49,12 @@ def process_trajectories(trajs, type_deaths, drifter_ids, traj_idx, undrogue_pre
                 count += 1
 
     return state_vn[:count], state_ve[:count], state_latitude[:count], state_longitude[:count], \
-              state_time[:count], state_id[:count], state_ground_flag[:count]
+              state_time[:count], state_id[:count], aprox_dist[:count], state_ground_flag[:count]
 
 
 traj_idx = np.insert(np.cumsum(ds.rowsize.values), 0, 0)
 
-state_vn, state_ve, state_latitude, state_longitude, state_time, state_id, state_ground_flag = process_trajectories(
+state_vn, state_ve, state_latitude, state_longitude, state_time, state_id, aprox_dist, state_ground_flag = process_trajectories(
     ds.traj.values, ds.type_death.values, ds.ID.values, traj_idx, np.invert(ds.drogue_presence.values), ds.vn.values,
     ds.ve.values, ds.latitude.values, ds.longitude.values, ds.time.values.astype('datetime64[s]').astype('float'),
     ds.aprox_distance_shoreline.values)
@@ -69,11 +72,11 @@ df = pd.DataFrame(data={'beaching_flag': state_ground_flag,
                         'velocity_east': state_ve,
                         'velocity_north': state_vn,
                         'speed': np.sqrt(state_vn**2 + state_ve**2),
+                        'aprox_distance_shoreline': aprox_dist,
                         })
 
 
 # Make sure the time is in datetime format
-
 df['time'] = pd.to_datetime(df['time'])
 
 # sort the segments dataframe by time

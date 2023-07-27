@@ -1,11 +1,11 @@
-from file_names import file_name_4
+from file_names import *
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-df = pd.read_csv(file_name_4, parse_dates=['time_start', 'time_end'], index_col='ID')
-df['speed'] = np.hypot(df['velocity_north'], df['velocity_east'])
+df = pd.read_csv(file_name_2, parse_dates=['time'])
+# df['speed'] = np.hypot(df['velocity_north'], df['velocity_east'])
 table_beaching_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts().unstack().fillna(0).astype(int)
 # sort the table descending from most to least false beaching flags
 table_beaching_per_drifter.sort_values(by=False, ascending=False, inplace=True)
@@ -23,7 +23,7 @@ ax = plt.gca()
 ax.set_xticks([])
 ax.set_xticklabels([])
 
-plt.savefig('figures/number_of_segments_per_drifter_stacked.png', dpi=300)
+plt.savefig('figures/number_of_segments_per_drifter_stacked_death_code1.png', dpi=300)
 plt.show()
 
 print(f'Number of unique drifters: {len(df.drifter_id.unique())}')
@@ -81,6 +81,59 @@ ax.set_xticklabels([])
 ax.set_yticklabels([])
 
 # Display the plot
-plt.savefig('figures/2d_histogram_beaching_per_drifter.png', dpi=300)
+plt.savefig('figures/2d_histogram_beaching_per_drifter_death_code1.png', dpi=300)
 plt.show()
+
+#%%
+n_false_ground = table_beaching_per_drifter[False][table_beaching_per_drifter[True] == 1]
+n_false_no_ground = table_beaching_per_drifter[False][table_beaching_per_drifter[True] != 1]
+
+# plot both in histogram
+max_value = np.max([np.max(n_false_ground), np.max(n_false_no_ground)])
+
+dbin = 40
+
+bin_edges = np.arange(0, max_value + dbin, dbin)  # Ensure the last bin edge is included
+
+# Count the number of drifters in each bin
+counts_ground, _ = np.histogram(n_false_ground, bins=bin_edges)
+counts_no_ground, _ = np.histogram(n_false_no_ground, bins=bin_edges)
+
+counts_ground_state = np.zeros(len(bin_edges) - 1)
+counts_no_ground_state = np.zeros(len(bin_edges) - 1)
+for i, (lower_limit, upper_limit) in enumerate(zip(bin_edges[:-1], bin_edges[1:])):
+    counts_ground_state[i] = np.sum(n_false_ground[(n_false_ground >= lower_limit) & (n_false_ground < upper_limit)])
+    counts_no_ground_state[i] = np.sum(n_false_no_ground[(n_false_no_ground >= lower_limit) & (n_false_no_ground < upper_limit)])
+
+
+# The x locations for the groups
+ind = np.arange(len(counts_ground))
+# The width of the bars
+width = 0.5
+
+fig, ax = plt.subplots(figsize=(10, 5))
+
+rects1 = ax.bar(ind+0.25, counts_ground, width, label='grounding', color='blue')
+rects2 = ax.bar(ind+0.75, counts_no_ground, width, label='non-grounding', color='red')
+
+# Add some text for labels, title and custom x-axis tick labels, etc.
+ax.set_xlabel('Number of non-grounding drifter states per drifter')
+ax.set_ylabel('Number of drifters')
+ax.set_xticks(ind)
+ax.set_xticklabels(range(0, max_value, dbin))
+ax.legend(loc='upper left')
+
+ax2 = ax.twinx()
+ax2.plot(ind+0.25, counts_ground_state, 'o:', color=(0.3, 0.3, 1), markersize=4, label='grounding')
+ax2.plot(ind+0.75, counts_no_ground_state, 's:', color=(1, 0.3, 0.3), markersize=4, label='non-grounding')
+ax2.set_ylabel('Number of non-grounding drifter states')
+ax2.legend(loc='upper right')
+
+#log y scale
+# ax.set_yscale('log', base=4)
+
+fig.tight_layout()
+plt.savefig('figures/no_grounding_per_drifter_death_code1.png', dpi=300)
+plt.show()
+
 

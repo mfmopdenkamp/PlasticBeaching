@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import toolbox as tb
 
-df = pd.read_csv(file_name_4, parse_dates=['time_start', 'time_end'], index_col='ID')
+df = pd.read_csv(file_name_4, parse_dates=['time'])
 delta_score = 0.02
 shore_score_thresholds = np.arange(0, 1+delta_score, delta_score)
 
