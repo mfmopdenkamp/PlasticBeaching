@@ -12,7 +12,7 @@ import plotter
 percentage = 100
 ylim = [-88, 88]
 xlim = None
-latlon_box_size = 2
+latlon_box_size = 1
 
 type_death = 1
 pickle_name = pickm.create_pickle_ds_gdp_name(type_death=type_death)
@@ -48,18 +48,18 @@ except FileNotFoundError:
 
 
 # %% Plot
-def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False, latitude=None,
-                        longitude=None, title=None, ax=None, legend=False, text='',
-                        crs=ccrs.PlateCarree()):
+def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False, ax=None,
+                        crs=ccrs.PlateCarree(), colorbar_label='', marker='o', cmap='viridis_r',
+                        label=None):
     if ax is None:
-        fig = plt.figure(figsize=(14, 9), dpi=300)
+        fig = plt.figure(figsize=(6, 9), dpi=300)
         ax = plt.axes(projection=crs)
 
     ax.set_global()
     ax.set_ylim(ylim)
     if xlim is not None:
         ax.set_xlim(xlim)
-    ax.coastlines(resolution='110m', color='lightgrey', linewidth=0.5)
+    # ax.coastlines(resolution='110m', color='lightgrey', linewidth=0.5)
     ax.add_feature(cfeature.LAND, facecolor='lightgrey')
 
     gl = ax.gridlines(draw_labels=True)
@@ -69,61 +69,54 @@ def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False,
     gl.yformatter = LATITUDE_FORMATTER
     gl.top_labels = gl.right_labels = False
 
-    # im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=LogNorm(), transform=crs)
-    im = ax.scatter(X.ravel(), Y.ravel(), s=2, c=density_grid.ravel(), cmap='viridis', norm=LogNorm(), transform=crs)
 
     if scatter:
-        ax.scatter(longitude, latitude, s=0.1, color=(0.5, 0.5, 1), transform=crs, label='Deployment locations',
-                   edgecolors=None)
+        im = ax.scatter(X.ravel(), Y.ravel(), s=3, marker=marker,
+                        c=density_grid.ravel(), cmap=cmap, norm=LogNorm(), transform=crs, label=label)
+    else:
+        im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=LogNorm(), transform=crs,
+                           label=label)
 
-    if legend:
-        legend = ax.legend(loc='upper right', frameon=True)
-        legend.legendHandles[0]._sizes = [50]  # adjust as needed
 
     # Add a colorbar
-    cbar = plt.colorbar(im, ax=ax,
-                        ticks=[0, 10, 100, 1000, 10000], shrink=0.9)
-    cbar.set_label('Density')
+    cbar = plt.colorbar(im, ax=ax, shrink=0.5)
 
-    if title is not None:
-        ax.set_title(title)
+    cbar.set_label(colorbar_label, labelpad=-50)
 
-    # Add text in top left corner
-    ax.text(0.01, 0.95, text, transform=ax.transAxes, fontsize=14, verticalalignment='top',
-        bbox=dict(facecolor='lightgrey', alpha=0.75, edgecolor='darkgrey'))
+    return ax
 
 
 crs = ccrs.PlateCarree()
 
+fig, ax = plt.subplots(figsize=(14, 8), dpi=300, subplot_kw={'projection': crs})
 
-fig = plt.figure(figsize=(10, 9), dpi=300)
-ax1 = fig.add_subplot(3, 1, 1, projection=crs)
-ax2 = fig.add_subplot(3, 1, 2, projection=crs)
-ax3 = fig.add_subplot(3, 1, 3, projection=crs)
 
-# get the current position of each axes
-pos1 = ax1.get_position()
-pos2 = ax2.get_position()
-pos3 = ax3.get_position()
+plot_global_density(X, Y, density_grid_lost, ylim=ylim, crs=ccrs.PlateCarree(), marker='*',
+                    label='Drogues lost', cmap='cool',
+                    ax=ax, scatter=True, colorbar_label=f'Lost drogues (# per {latlon_box_size}x{latlon_box_size} degrees)')
+plot_global_density(X, Y, density_grid_end, ylim=ylim, crs=ccrs.PlateCarree(), label='Groundings',
+                    ax=ax, scatter=True, colorbar_label=f'Trajectory ends (# per {latlon_box_size}x{latlon_box_size} degrees)')
 
-# set a new position
-new_pos1 = [pos1.x0, pos1.y0, pos2.width, pos1.height]
-new_pos2 = [pos2.x0, pos2.y0, pos2.width, pos2.height]
-new_pos3 = [pos3.x0, pos3.y0, pos2.width, pos3.height]
+from matplotlib.lines import Line2D
+legend_elements = [Line2D([0], [0], marker='*', color='w', label='Drogues lost',
+                          markerfacecolor=(0.5, 0.2, 0.8), markersize=13),
+                   Line2D([0], [0], marker='o', color='w', label='Trajectories end',
+                          markerfacecolor=(31/256,158/256,138/256), markersize=10)]
 
-ax1.set_position(new_pos1)
-ax2.set_position(new_pos2)
-ax3.set_position(new_pos3)
-
-plot_global_density(X, Y, density_grid_deploy, title='Deployment', crs=ccrs.PlateCarree(),
-                            ylim=ylim, ax=ax1)
-plot_global_density(X, Y, density_grid_lost, title='Lost drogue', crs=ccrs.PlateCarree(),
-                            ax=ax2, ylim=ylim)
-plot_global_density(X, Y, density_grid_end, ylim=ylim, title='Grounded', crs=ccrs.PlateCarree(),
-                            ax=ax3)
+ax.legend(handles=legend_elements, loc='upper right')
 
 plt.tight_layout()
 
-plt.savefig(f'figures/density_deploy_lost_beach_deathtype_{type_death}_{percentage}_{latlon_box_size}.png', dpi=300)
+plt.savefig(f'figures/drogue_trajend_{type_death}_{percentage}_{latlon_box_size}.png', dpi=300)
+
+plt.show()
+
+#%% Compare lat lon between drogues lost and trajectory end
+
+fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+
+
+ax.bar(density_grid_lost.sum(axis=1))
+ax.bar(density_grid_end.sum(axis=1))
 
 plt.show()
