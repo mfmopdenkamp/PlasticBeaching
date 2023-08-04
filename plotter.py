@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
+from matplotlib.colors import LogNorm
 import matplotlib.ticker as ticker
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 from cartopy.io.img_tiles import Stamen
 import load_data
@@ -179,16 +180,18 @@ def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False,
     ax.set_ylim(ylim)
     if xlim is not None:
         ax.set_xlim(xlim)
-    ax.coastlines()
+    ax.add_feature(cfeature.LAND, facecolor='lightgrey')
 
     gl = ax.gridlines(draw_labels=True)
+    gl.xlines = False
+    gl.ylines = False
     gl.xformatter = LONGITUDE_FORMATTER
     gl.yformatter = LATITUDE_FORMATTER
     gl.top_labels = gl.right_labels = False
 
-    im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=colors.LogNorm(), transform=crs)
+    im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=LogNorm(), transform=crs)
     if scatter:
-        ax.scatter(longitude, latitude, s=0.1, color='b', alpha=0.5, transform=crs)
+        ax.scatter(longitude, latitude, s=0.05, color=(0.1, 0.1, 0.8), alpha=0.5, transform=crs)
     # Add a colorbar
     cbar = plt.colorbar(im, ax=ax,
                         ticks=[0, 1, 10, 100, 1000, 10000], format=ticker.ScalarFormatter(), shrink=0.6)

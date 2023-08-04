@@ -24,29 +24,35 @@ def process_trajectories(trajs, type_deaths, drifter_ids, traj_idx, undrogue_pre
     for j, death_type, drifter_id in zip(trajs, type_deaths, drifter_ids):
         slice_sel = slice(traj_idx[j], traj_idx[j + 1])
         mask_undrogued = undrogue_presence[slice_sel]
-        mask_undrogued_near_shore = mask_undrogued & (aprox_distance_shoreline[slice_sel] < 120)
+        mask_undrogued_near_shore = mask_undrogued & (aprox_distance_shoreline[slice_sel] < 12)
         n_undrogued_near_shore = mask_undrogued_near_shore.sum()
-        if n_undrogued_near_shore > hours_to_forecast:
-            vn_sel = vn[slice_sel]
-            ve_sel = ve[slice_sel]
-            latitude_sel = latitudes[slice_sel]
-            longitude_sel = longitudes[slice_sel]
-            time_sel = times[slice_sel]
-            aprox_dist_sel = aprox_distance_shoreline[slice_sel]
 
-            for i in np.arange(hours_to_forecast, n_undrogued_near_shore, hours_to_forecast):
-                state_vn[count] = vn_sel[-i]
-                state_ve[count] = ve_sel[-i]
-                state_latitude[count] = latitude_sel[-i]
-                state_longitude[count] = longitude_sel[-i]
-                state_time[count] = time_sel[-i]
-                aprox_dist[count] = aprox_dist_sel[-i]
-                state_id[count] = drifter_id
+        vn_sel = vn[slice_sel]
+        ve_sel = ve[slice_sel]
+        latitude_sel = latitudes[slice_sel]
+        longitude_sel = longitudes[slice_sel]
+        aprox_dist_sel = aprox_distance_shoreline[slice_sel]
+        time_sel = times[slice_sel]
 
-                if death_type == 1 and i == hours_to_forecast:
-                    state_ground_flag[count] = True
+        if death_type == 1:
+            state_ground_flag[count] = True
+            # Make sure the last state is a grounding state. The trajectory is split by distance to the shoreline, which
+            # may split the trajectory in segments that are not connected.
+            dts = time_sel[1:] - time_sel[:-1]
+            index_from_last = np.arange(np.nonzero(dts[::-1] != 1)[0][-1]+1, n_undrogued_near_shore, hours_to_forecast)
+        else:
+            index_from_last = np.arange(1, n_undrogued_near_shore, hours_to_forecast)
 
-                count += 1
+        for i in index_from_last:
+            state_vn[count] = vn_sel[-i]
+            state_ve[count] = ve_sel[-i]
+            state_latitude[count] = latitude_sel[-i]
+            state_longitude[count] = longitude_sel[-i]
+            state_time[count] = time_sel[-i]
+            aprox_dist[count] = aprox_dist_sel[-i]
+            state_id[count] = drifter_id
+
+            count += 1
 
     return state_vn[:count], state_ve[:count], state_latitude[:count], state_longitude[:count], \
               state_time[:count], state_id[:count], aprox_dist[:count], state_ground_flag[:count]
@@ -74,7 +80,6 @@ df = pd.DataFrame(data={'beaching_flag': state_ground_flag,
                         'speed': np.sqrt(state_vn**2 + state_ve**2),
                         'aprox_distance_shoreline': aprox_dist,
                         })
-
 
 # Make sure the time is in datetime format
 df['time'] = pd.to_datetime(df['time'])
