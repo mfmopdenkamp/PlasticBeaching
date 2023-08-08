@@ -1,42 +1,22 @@
 import picklemanager as pickm
-from create_subset_shoreline_proximity import create_subset
 import toolbox as tb
 from plotter import *
 import matplotlib.pyplot as plt
 
-min_lon = -92.5
-max_lon = -88.5
-min_lat = -1.75
-max_lat = 0.75
+min_lon = 124
+max_lon = 128
+min_lat = 9
+max_lat = 14
+
+ds = pickm.load_pickle(pickm.create_pickle_path('gdp_drogue_presence'))
+
+df_shore = pickm.load_pickle(pickm.create_pickle_path('df_shoreline_f_lonlat.pkl'))
 
 
-def load_subset(min_lon, max_lon, min_lat, max_lat):
-    proximity = 10
-    ds = create_subset(proximity)
-
-    lat = (ds.latitude <= max_lat) & (ds.latitude >= min_lat)
-    lon = (ds.longitude <= max_lon) & (ds.longitude >= min_lon)
-    obs = np.where(lat*lon)[0]
-    traj = np.where(np.isin(ds.ID, np.unique(ds.ids.isel(obs=obs))))[0]
-    ds_g = ds.sel(obs=obs, traj=traj)
-    return ds_g
+shortest_dists = tb.get_shortest_distances_v2(ds, df_shore)
 
 
-pickle_name = 'ds_galapagos'
-ds_g = pickm.pickle_wrapper(pickle_name, load_subset, min_lon, max_lon, min_lat, max_lat)
-
-df_shore = load_data.get_shoreline(resolution='f')
-
-selected_gdf = df_shore[(df_shore.bounds['minx'] >= min_lon) & (df_shore.bounds['maxx'] <= max_lon) &
-                  (df_shore.bounds['miny'] >= min_lat) & (df_shore.bounds['maxy'] <= max_lat)]
-
-
-def add_distance_shoreline(ds):
-    ds['distance_shoreline'] = ('obs', tb.find_shortest_distance(ds, selected_gdf))
-    return ds
-
-
-ds_g = pickm.pickle_wrapper('ds_galapagos_distance', add_distance_shoreline, ds_g)
+ds = pickm.pickle_wrapper('ds_galapagos_distance', add_distance_shoreline, ds)
 
 
 def plot_distances(ds):
@@ -53,11 +33,11 @@ def plot_distances(ds):
     plt.show()
 
 
-plot_distances(ds_g)
+plot_distances(ds)
 
 
 #%%
-plot_last_distances(ds_g)
+plot_last_distances(ds)
 
 
 def plot_many(ds):
@@ -73,9 +53,9 @@ def plot_many(ds):
     
 #%% select only death type == 1
 death_type = 1
-traj = np.where(ds_g.type_death == death_type)[0]
-obs = np.where(np.isin(ds_g.ids, ds_g.ID[traj]))[0]
-ds_g_1 = ds_g.isel(traj=np.where(ds_g.type_death == death_type)[0], obs=obs)
+traj = np.where(ds.type_death == death_type)[0]
+obs = np.where(np.isin(ds.ids, ds.ID[traj]))[0]
+ds_g_1 = ds.isel(traj=np.where(ds.type_death == death_type)[0], obs=obs)
 
 plot_many(ds_g_1)
 plot_distances(ds_g_1)
@@ -83,9 +63,9 @@ plot_last_distances(ds_g_1)
 
 #%% select only death type == 3
 death_type = 3
-traj = np.where(ds_g.type_death == death_type)[0]
-obs = np.where(np.isin(ds_g.ids, ds_g.ID[traj]))[0]
-ds_g_3 = ds_g.isel(traj=np.where(ds_g.type_death == death_type)[0], obs=obs)
+traj = np.where(ds.type_death == death_type)[0]
+obs = np.where(np.isin(ds.ids, ds.ID[traj]))[0]
+ds_g_3 = ds.isel(traj=np.where(ds.type_death == death_type)[0], obs=obs)
 
 plot_many(ds_g_3)
 plot_distances(ds_g_3)

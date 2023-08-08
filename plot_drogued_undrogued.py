@@ -77,8 +77,7 @@ def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False,
 
     im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=LogNorm(), transform=crs)
     if scatter:
-        ax.scatter(longitude, latitude, s=0.1, color=(0.5, 0.5, 1), transform=crs, label='Deployment locations',
-                   edgecolors=None)
+        ax.scatter(longitude, latitude, s=0.5, color=(0.5, 0.5, 1), transform=crs, label='Deployment locations', alpha=0.5)
 
     if legend:
         legend = ax.legend(loc='upper right', frameon=True)
@@ -116,7 +115,7 @@ ax2.set_position(new_pos2)
 plot_global_density(X_drog, Y_drog, density_grid_drog, title='Drogued', crs=crs,
                             ax=ax1, scatter=True, longitude=lons, latitude=lats, legend=True, text='a)')
 plot_global_density(X_undrog, Y_undrog, density_grid, ylim=ylim, title='Undrogued', crs=crs,
-                            ax=ax2, scatter=True, longitude=lons, latitude=lats, legend=True, text='b)')
+                            ax=ax2, text='b)')
 
 plt.tight_layout()
 

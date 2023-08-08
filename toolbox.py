@@ -4,6 +4,7 @@ import geopandas as gpd
 import math
 from tqdm import tqdm
 import pandas as pd
+from numba import njit
 
 
 colors = [
@@ -73,6 +74,33 @@ def find_shortest_distance(ds_gdp, gdf_shoreline):
             distance = point.distance(polygon)
             if distance < shortest_distances[i]:
                 shortest_distances[i] = distance
+
+    return shortest_distances
+
+
+@njit
+def find_shortest_distance_v2(lat_state, lon_state, lat_shore, lon_shore):
+
+    lat_state = np.radians(lat_state)
+    lon_state = np.radians(lon_state)
+    lat_shore = np.radians(lat_shore)
+    lon_shore = np.radians(lon_shore)
+
+    shortest_distances = np.zeros(len(lat_state), dtype=np.float32)
+
+    R_earth = 6371.0  # km
+    # Loop over all segments
+    for i_state, (lon, lat) in enumerate(zip(lon_state, lat_state)):
+
+        dlon = lon_shore - lon
+        dlat = lat_shore - lat
+
+        dxs = R_earth * np.cos(lat) * dlon
+        dys = R_earth * dlat
+
+        distances_shore_state = np.sqrt(dxs ** 2 + dys ** 2)
+
+        shortest_distances[i_state] = np.min(distances_shore_state)
 
     return shortest_distances
 

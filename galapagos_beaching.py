@@ -1,12 +1,11 @@
 import picklemanager as pickm
 from plotter import *
-from analyzer import *
+from toolbox import get_obs_drifter_on_shore
 
 pickle_name = pickm.create_pickle_path('ds_galapagos_distance')
 ds_g = pickm.load_pickle(pickle_name)
 
-mask_drifter_beached = get_obs_drifter_on_shore(ds_g.distance_shoreline.values, np.hypot(ds_g.ve.values, ds_g.vn.values),
-                                                max_velocity_mps=0.01, max_distance_m=1500)
+mask_drifter_beached = get_obs_drifter_on_shore(ds_g.distance_shoreline.values, np.hypot(ds_g))
 
 ds_g_s = ds_g.isel(obs=mask_drifter_beached)
 plot_galapagos_map_distances(ds_g_s, title='Galapagos, beached instances')

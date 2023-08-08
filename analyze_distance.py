@@ -12,6 +12,7 @@ ds_drogued = ds.isel(obs=ds.obs[ds.drogue_presence.values])
 n_obs = len(ds.obs)
 n_traj = len(ds.traj)
 
+
 @jit(nopython=True)
 def get_count(ds_ap_dist, ds_ids, distances):
     trajs = np.zeros(len(distances))
@@ -71,7 +72,7 @@ plot_ax(axs[1, 1], distances_close, obss_close_drogued, obss_close_undrogued, yl
 
 fig.text(0.5, 0.07, 'Maximum distance to the shoreline (km)', ha='center')
 
-axs[0, 0].set_title('Far from the shore')
+axs[0, 0].set_title(r'\textbf{Far} from the shore')
 axs[0, 1].set_title('Close to the shore')
 
 for ax in axs.flat:

@@ -3,7 +3,7 @@ import pickle
 import picklemanager as pickm
 import numpy as np
 import matplotlib.pyplot as plt
-from analyzer import interpolate_drifter_location
+from toolbox import interpolate_drifter_location
 
 
 def create_subset(proximity, filename='gdp_v2.00.nc'):

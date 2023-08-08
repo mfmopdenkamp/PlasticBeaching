@@ -121,7 +121,7 @@ diff_drogueness = final_segments_drogueness[:, :-1] - final_segments_drogueness[
 mask_drogue_lost = np.sum(diff_drogueness, axis=1).astype(np.bool_)
 count_lost_drogues = np.sum(mask_drogue_lost)
 
-sum_drogueness = np.sum(final_segments_drogueness,axis=1)
+sum_drogueness = np.sum(final_segments_drogueness, axis=1)
 mask_drogued = sum_drogueness == 25
 mask_undrogued = sum_drogueness == 0
 count_undrogued = np.sum(mask_undrogued)
@@ -138,14 +138,23 @@ import matplotlib.pyplot as plt
 fig, axs = plt.subplots(3, 1, figsize=(8, 10))
 
 data = [fd_drogued, fd_undrogued, fd_lost_drogue]
-labels = ['Drogued', 'Undrogued', 'Lost Drogue']
+n_removed = [np.sum(mask & no_near_shore_mask) for mask in (mask_drogued, mask_undrogued, mask_drogue_lost)]
+labels = ['Drogued drifters', 'Undrogued drifters', 'Drogue lost during last 24h']
 bins = [np.arange(0,220,20), np.arange(0, 52, 2), np.arange(0, 52, 2)]
 
 for i, ax in enumerate(axs):
     ax.hist(data[i], bins=bins[i], alpha=0.5, edgecolor='black')
-    ax.set_title(labels[i])
+    if i == 0:
+        ax.set_xticks(np.arange(0, 220, 20))
+    ax.set_title(labels[i], fontsize=13, weight='bold')
     ax.set_ylabel('Number of drifters')
     ax.grid(True)
+    # plot letter in top right corner
+    ax.text(0.98, 0.95, f'({chr(97 + i)})', transform=ax.transAxes,
+            size=16, weight='bold', va='top', ha='right')
+    # plot total number of drifters next to titel of each panel
+    ax.text(0.95, 1.1, f'n = {len(data[i])} ({np.sum(n_removed[i])})', transform=ax.transAxes,
+            size=16, va='top', ha='right')
 
 axs[-1].set_xlabel('Distance from shoreline (km)')
 

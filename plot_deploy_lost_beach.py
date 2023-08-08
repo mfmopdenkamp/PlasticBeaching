@@ -12,7 +12,7 @@ import plotter
 percentage = 100
 ylim = [-88, 88]
 xlim = None
-latlon_box_size = 1
+latlon_box_size = 2
 
 type_death = 1
 pickle_name = pickm.create_pickle_ds_gdp_name(type_death=type_death)
@@ -71,7 +71,7 @@ def plot_global_density(X, Y, density_grid, xlim=None, ylim=None, scatter=False,
 
 
     if scatter:
-        im = ax.scatter(X.ravel(), Y.ravel(), s=3, marker=marker,
+        im = ax.scatter(X.ravel(), Y.ravel(), s=3*latlon_box_size, marker=marker,
                         c=density_grid.ravel(), cmap=cmap, norm=LogNorm(), transform=crs, label=label)
     else:
         im = ax.pcolormesh(X, Y, density_grid, shading='nearest', cmap='hot_r', norm=LogNorm(), transform=crs,
@@ -90,17 +90,17 @@ crs = ccrs.PlateCarree()
 
 fig, ax = plt.subplots(figsize=(14, 8), dpi=300, subplot_kw={'projection': crs})
 
-
+plot_global_density(X, Y, density_grid_end, ylim=ylim, crs=ccrs.PlateCarree(), label='Groundings',
+                    ax=ax, scatter=True, colorbar_label=f'Trajectory ends (# per {latlon_box_size}x{latlon_box_size} degrees)')
 plot_global_density(X, Y, density_grid_lost, ylim=ylim, crs=ccrs.PlateCarree(), marker='*',
                     label='Drogues lost', cmap='cool',
                     ax=ax, scatter=True, colorbar_label=f'Lost drogues (# per {latlon_box_size}x{latlon_box_size} degrees)')
-plot_global_density(X, Y, density_grid_end, ylim=ylim, crs=ccrs.PlateCarree(), label='Groundings',
-                    ax=ax, scatter=True, colorbar_label=f'Trajectory ends (# per {latlon_box_size}x{latlon_box_size} degrees)')
+
 
 from matplotlib.lines import Line2D
-legend_elements = [Line2D([0], [0], marker='*', color='w', label='Drogues lost',
+legend_elements = [Line2D([0], [0], marker='*', color='w', label='Lost drogues',
                           markerfacecolor=(0.5, 0.2, 0.8), markersize=13),
-                   Line2D([0], [0], marker='o', color='w', label='Trajectories end',
+                   Line2D([0], [0], marker='o', color='w', label='Trajectory ends',
                           markerfacecolor=(31/256,158/256,138/256), markersize=10)]
 
 ax.legend(handles=legend_elements, loc='upper right')
@@ -112,11 +112,32 @@ plt.savefig(f'figures/drogue_trajend_{type_death}_{percentage}_{latlon_box_size}
 plt.show()
 
 #%% Compare lat lon between drogues lost and trajectory end
+import numpy as np
+fig, ax = plt.subplots(2, figsize=(10, 8), dpi=300)
 
-fig, ax = plt.subplots(figsize=(14, 8), dpi=300)
+width = 0.5
+x0 = np.arange(-90, 90, 1)
+# ax.bar(x-width/2, density_grid_lost.sum(axis=1), width=width)
+# ax.bar(x+width/2, density_grid_end.sum(axis=1), width=width)
 
+ax[0].step(x0, density_grid_lost.sum(axis=1), 'b', where='post', linewidth=3, label='Drogues lost')
+ax[0].step(x0, density_grid_end.sum(axis=1), 'g', where='post', linewidth=3, label='Trajectory ends')
+ax[0].set_ylabel('Number of locations')
+ax[0].set_xlabel('Latitude')
+ax[0].legend()
 
-ax.bar(density_grid_lost.sum(axis=1))
-ax.bar(density_grid_end.sum(axis=1))
+x1 = np.arange(-180, 180, 1)
+ax[1].step(x1, density_grid_lost.sum(axis=0), 'b', where='post', linewidth=3)
+ax[1].step(x1, density_grid_end.sum(axis=0), 'g', where='post', linewidth=3)
+ax[1].set_ylabel('Number of locations')
+ax[1].set_xlabel('Longitude')
+
+plt.tight_layout()
+
+plt.savefig(f'figures/drogue_trajend_latlon_{type_death}_{percentage}_{latlon_box_size}.png', dpi=300)
 
 plt.show()
+
+
+
+
