@@ -14,6 +14,9 @@ n_traj_gps = ds.location_type.values.sum()
 n_obs_gps = ds.rowsize.values[ds.location_type.values].sum()
 print(f'GPS\t{n_obs_gps}\t{n_traj_gps}\t{n_obs_gps/n_traj_gps:.1f}')
 
+n_obs_undrogued = np.sum(~ds.drogue_presence.values)
+
+
 n_traj_gps_undrogued = 0
 n_traj_gps_undrogued_12km = 0
 n_traj_gps_undrogued_12km_death = 0

@@ -451,3 +451,19 @@ def hard_coded_exp_fit(x):
     prob = 0.5 * np.exp(-0.0003 * x) + 0.1
     output = (prob > 0.5)
     return output
+
+
+@njit
+def get_unit_inproducts(x, y, u, v, unit=True):
+    inproducts = np.empty(len(x))
+    for i, (x_i, y_i, u_i, v_i) in enumerate(zip(x, y, u, v)):
+        if unit:
+            z = np.sqrt(x_i**2 + y_i**2)
+            w = np.sqrt(u_i**2 + v_i**2)
+        else:
+            z = 1
+            w = 1
+        inproducts[i] = x_i / z * u_i / w + y_i / z * v_i / w
+    return inproducts
+
+

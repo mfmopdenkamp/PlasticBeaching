@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import toolbox as tb
 
-df = pd.read_csv(file_name_4, parse_dates=['time'])
+df = pd.read_csv(file_name_4)
 delta_score = 0.02
 shore_score_thresholds = np.arange(0, 1+delta_score, delta_score)
 
@@ -48,7 +48,6 @@ y_fit = power_func(shore_distance_thresholds, a_fit, b_fit)
 
 # a_fit2, b_fit2, c_fit2 = curve_fit(exponential_func, shore_distance_thresholds, beaching_prob_by_shore_distance,
 #                    p0=(0.5, -0.0003, 0.1))[0]
-
 # y_fit2 = exponential_func(shore_distance_thresholds, a_fit2, b_fit2, c_fit2)
 
 y_fit3 = hard_coded_exp_fit(shore_distance_thresholds)
@@ -58,14 +57,14 @@ plt.scatter(shore_distance_thresholds, beaching_prob_by_shore_distance, label='D
 
 plt.figure(figsize=(7, 5))
 plt.scatter(shore_distance_thresholds/1000, beaching_prob_by_shore_distance, label='Data')
-plt.plot(shore_distance_thresholds/1000, y_fit, label='Fitted power function')
+# plt.plot(shore_distance_thresholds/1000, y_fit, label='Fitted power function')
 # plt.plot(shore_distance_thresholds/1000, y_fit2, label='Fitted exponential function')
-plt.plot(shore_distance_thresholds/1000, y_fit3, label='Fitted exponential function')
+plt.plot(shore_distance_thresholds/1000, y_fit3, c='orange', label='Fitted exponential function')
 plt.xlabel('shore distance threshold [km]')
 plt.ylabel('Grounding probability')
 plt.legend()
 plt.grid()
-plt.savefig('figures/grounding_probability_vs_shore_distance_threshold.png', dpi=300)
+plt.savefig('figures/model_1_split.png', dpi=300)
 plt.show()
 #%%
 coast_types = ['shore', 'beach', 'bedrock', 'wetland']

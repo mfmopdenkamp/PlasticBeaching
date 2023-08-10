@@ -34,25 +34,6 @@ if filter_outliers:
         (table_beaching_per_drifter[False] <= 15) & (table_beaching_per_drifter[True] <= 6)].index
     df = df[df.drifter_id.isin(drifter_ids_to_keep)]
 
-#%%
-cor = df.corr(numeric_only=True)
-diki = pd.DataFrame({'pd.corr': cor[y_column].sort_values(ascending=False)[1:]})
-plt.figure(figsize=(7, 12))
-plt.barh(diki.index, diki['pd.corr'])
-plt.xlabel('Point-biserial correlation coefficients with grounding flag')
-plt.grid(axis='x')
-#plot horizontal thin lines from yticks to origin
-x_lims = plt.gca().get_xlim()
-for y in diki.index:
-    plt.plot([x_lims[0], 0], [y, y], 'k--', alpha=0.3)
-
-plt.xlim(x_lims)
-
-plt.tight_layout()
-
-plt.savefig(f'figures/corr_coef_grounding_filtered-{filter_outliers}.png', dpi=300)
-
-plt.show()
 
 #%%
 if remove_tidal:

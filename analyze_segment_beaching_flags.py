@@ -4,18 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-df = pd.read_csv(file_name_2, parse_dates=['time'])
+df = pd.read_csv(file_name_2, parse_dates=['time_start'])
 # df['speed'] = np.hypot(df['velocity_north'], df['velocity_east'])
-table_beaching_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts().unstack().fillna(0).astype(int)
+table_grounding_per_drifter = df.groupby('drifter_id').beaching_flag.value_counts().unstack().fillna(0).astype(int)
 # sort the table descending from most to least false beaching flags
-table_beaching_per_drifter.sort_values(by=False, ascending=False, inplace=True)
+table_grounding_per_drifter.sort_values(by=False, ascending=False, inplace=True)
 
 #%% depict how represented each drifter is in the dataset for a true and false beaching flag by a stacked bar plot
-table_beaching_per_drifter.plot(kind='bar', stacked=True, figsize=(15, 5), title='Number of segments per drifter',
-                                align='edge', width=1)
+table_grounding_per_drifter.plot(kind='bar', stacked=True, figsize=(15, 5), title='Number of drifter states per drifter',
+                                 align='edge', width=1)
 plt.legend()
 plt.xlabel('Drifters')
-plt.ylabel('Number of trajectory segments with true and false beaching flags')
+plt.ylabel('Number of drifter states with true and false grounding flags')
 
 ax = plt.gca()
 
@@ -23,7 +23,7 @@ ax = plt.gca()
 ax.set_xticks([])
 ax.set_xticklabels([])
 
-plt.savefig('figures/number_of_segments_per_drifter_stacked_death_code1.png', dpi=300)
+plt.savefig('figures/number_of_drifter states_per_drifter_stacked_death_code1.png', dpi=300)
 plt.show()
 
 print(f'Number of unique drifters: {len(df.drifter_id.unique())}')
@@ -32,8 +32,8 @@ print(f'Number of unique drifters: {len(df.drifter_id.unique())}')
 
 # 2d histogram
 # Assuming 'x' and 'y' are the data arrays for the x and y coordinates
-x = table_beaching_per_drifter[True]
-y = table_beaching_per_drifter[False]
+x = table_grounding_per_drifter[True]
+y = table_grounding_per_drifter[False]
 
 # Determine the extent of the grid
 x_min, x_max = np.min(x), np.max(x)
@@ -44,7 +44,7 @@ num_bins_x = int(np.ceil(x_max - x_min))
 num_bins_y = int(np.ceil(y_max - y_min))
 
 # Create a figure and axis
-fig, ax = plt.subplots(figsize=(int(np.ceil(num_bins_y/4)), int(np.ceil(num_bins_x/4))))
+fig, ax = plt.subplots(figsize=(int(np.ceil(num_bins_y/5)), int(np.ceil(num_bins_x/4))))
 
 # Plot the 2D histogram with specified extent and aspect ratio
 h, xedges, yedges, _ = ax.hist2d(x, y, bins=[num_bins_x, num_bins_y], cmap='Blues')
@@ -56,14 +56,14 @@ for i in range(len(xedges) - 1):
         count = int(h[i, j])  # Get the count for the current cell
         x_pos = xedges[i] + 0.5 * (xedges[i + 1] - xedges[i])  # Calculate x position for annotation
         y_pos = yedges[j] + 0.5 * (yedges[j + 1] - yedges[j])  # Calculate y position for annotation
-        ax.annotate(str(count), xy=(x_pos, y_pos), ha='center', va='center',
+        ax.annotate(str(count), xy=(x_pos, y_pos-0.05), ha='center', va='center',
                     color=('black' if 200 > count > 0 else ('white' if count > 200 else (0.7, 0.7, 0.7))))
 
 
 # Set the labels and title
-plt.xlabel(r'Number of segments $\bf{with}$ grounding')
-plt.ylabel(r'Number of segments $\bf{without}$ grounding')
-ax.set_title('Distribution of drifters by amount of segments with and without grounding')
+plt.xlabel(r'Number of $\bf{positive}$ grounding flags')
+plt.ylabel(r'Number of $\bf{negative}$ grounding flags')
+ax.set_title('Drifter State Dataset: drifter distribution by number of grounding flags')
 
 # Remove original ticks and ticklabels
 ax.tick_params(axis='both', which='both', length=0)
@@ -79,14 +79,16 @@ ax.set_xticks([])
 ax.set_yticks([])
 ax.set_xticklabels([])
 ax.set_yticklabels([])
+ax.text(0.95, 0.95, f'Number of drifters: {table_grounding_per_drifter.shape[0]}', transform=ax.transAxes,
+        horizontalalignment='right', verticalalignment='top', bbox={'facecolor': 'white', 'alpha': 0.5, 'pad': 5})
 
 # Display the plot
-plt.savefig('figures/2d_histogram_beaching_per_drifter_death_code1.png', dpi=300)
+plt.savefig('figures/2d_histogram_grounding_per_drifter.png', dpi=300)
 plt.show()
 
 #%%
-n_false_ground = table_beaching_per_drifter[False][table_beaching_per_drifter[True] == 1]
-n_false_no_ground = table_beaching_per_drifter[False][table_beaching_per_drifter[True] != 1]
+n_false_ground = table_grounding_per_drifter[False][table_grounding_per_drifter[True] == 1]
+n_false_no_ground = table_grounding_per_drifter[False][table_grounding_per_drifter[True] != 1]
 
 # plot both in histogram
 max_value = np.max([np.max(n_false_ground), np.max(n_false_no_ground)])
