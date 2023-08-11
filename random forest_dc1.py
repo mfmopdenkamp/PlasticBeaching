@@ -16,12 +16,12 @@ import toolbox as tb
 
 y_column = 'beaching_flag'
 
-df = pd.read_csv(file_name_4, parse_dates=['time_start', 'time_end'], index_col='ID')
-df.drop(columns=['ID.2', 'ID.1', 'longitude_start', 'latitude_start', 'longitude_end', 'latitude_end',
-                 ], inplace=True, errors='ignore')
+df = pd.read_csv(file_name_4, index_col=None)
+df.drop(columns=['longitude', 'latitude', 'time', 'aprox_distance_shoreline', 'hours_of_month',
+                 'drifter_id'], inplace=True)
 df['speed'] = np.hypot(df['velocity_north'], df['velocity_east'])
 df.rename(columns={'velocity_north': 'velocity_v', 'velocity_east': 'velocity_u',
-                   'shortest_distance_n': 'shore_distance_y', 'shortest_distance_e': 'shore_distance_x',
+                   'shore_distance_n': 'shore_distance_y', 'shore_distance_e': 'shore_distance_x',
                    }, inplace=True)
 # Renaming columns based on the mentioned conditions
 new_columns = {col: col.replace('score_', 'scr_').replace('deg', '').replace('km', '')
@@ -45,7 +45,8 @@ df['inprod_v_d'] = tb.get_unit_inproducts(df['shore_distance_x'].values, df['sho
 df['inprod_unit_v_d'] = tb.get_unit_inproducts(df['shore_distance_x'].values, df['shore_distance_y'].values,
                                                         df['velocity_u'].values, df['velocity_v'].values)
 
-filter_outliers = True
+
+filter_outliers = False
 remove_tidal = False
 remove_directionality = False
 remove_coastal_type = False
@@ -72,7 +73,7 @@ if remove_tidal:
     df.drop(columns=tidal_columns, inplace=True, errors='ignore')
 
 if remove_directionality:
-    df.drop(columns=['velocity_north', 'velocity_east', 'shortest_distance_n', 'shortest_distance_e', 'wind_10m_v_min',
+    df.drop(columns=['velocity_north', 'velocity_east', 'shore_distance_n', 'shore_distance_e', 'wind_10m_v_min',
                      'wind_10m_v_max', 'wind_10m_v_mean', 'wind_10m_v_std', 'wind_10m_u_min', 'wind_10m_u_max'],
             inplace=True, errors='ignore')
 
@@ -88,7 +89,7 @@ if remove_coastal_type:
 
 df.drop(columns=['drifter_id'], inplace=True, errors='ignore')
 #%%
-x = df.drop(columns=[y_column, 'time_start', 'time_end'])
+x = df.drop(columns=[y_column])
 y = df[y_column]
 
 
@@ -127,7 +128,7 @@ c_matrix_all_false = confusion_matrix(y_test, y_pred_all_false)
 # %% base line model
 from toolbox import hard_coded_exp_fit
 
-y_pred_base = hard_coded_exp_fit(x_test['shortest_distance'])
+y_pred_base = hard_coded_exp_fit(x_test['shore_distance'])
 a_score_base = accuracy_score(y_test, y_pred_base)
 p_score_base = precision_score(y_test, y_pred_base)
 r_score_base = recall_score(y_test, y_pred_base)
@@ -135,7 +136,7 @@ f1_score_base = f1_score(y_test, y_pred_base)
 c_matrix_base = confusion_matrix(y_test, y_pred_base)
 
 # %% decision tree
-pickle_name = pickm.create_pickle_path(f'decision_tree_new_{filter_outliers}_{remove_tidal}_{remove_directionality}_'
+pickle_name = pickm.create_pickle_path(f'decision_tree_dc1_{filter_outliers}_{remove_tidal}_{remove_directionality}_'
                                        f'{undersampling}_{remove_coastal_type}')
 try:
     grid_search_tree = pickm.load_pickle(pickle_name)
@@ -143,7 +144,8 @@ except FileNotFoundError:
     params = {'splitter': ['best', 'random'], 'max_depth': [None, 5, 10, 20],
                 'min_samples_split': [2, 5, 10, 20, 50, 100], 'min_samples_leaf': [1, 2, 5, 10, 20],
                 'max_features': [None, 'sqrt', 'log2']}
-    grid_search_tree = GridSearchCV(DecisionTreeClassifier(), param_grid=params, verbose=1)
+    grid_search_tree = GridSearchCV(DecisionTreeClassifier(), param_grid=params, verbose=1, n_jobs=-1, cv=5,
+                                    scoring='f1')
     grid_search_tree.fit(x_train, y_train)
 
     pickm.dump_pickle(grid_search_tree, pickle_name)
@@ -159,13 +161,14 @@ c_matrix_tree = confusion_matrix(y_test, y_pred_tree)
 
 #%% random forest
 try:
-    pickle_name = pickm.create_pickle_path(f'random_forest_new_{filter_outliers}_{remove_tidal}_{remove_directionality}_'
+    pickle_name = pickm.create_pickle_path(f'random_forest_dc1_{filter_outliers}_{remove_tidal}_{remove_directionality}_'
                                            f'{undersampling}_{remove_coastal_type}')
     grid_search_rf = pickm.load_pickle(pickle_name)
 except FileNotFoundError:
     param_grid = {'n_estimators':[50, 100, 200], 'min_samples_split':[10, 20, 40, 80], 'max_depth':[None, 5, 10, 20],
                   'max_features':[None, 'sqrt', 'log2'], 'min_samples_leaf': [1, 2, 5, 10, 20]}
-    grid_search_rf = GridSearchCV(RandomForestClassifier(), param_grid=param_grid, verbose=1)
+    grid_search_rf = GridSearchCV(RandomForestClassifier(), param_grid=param_grid, verbose=1, n_jobs=-1, cv=5,
+                                  scoring='f1')
     grid_search_rf.fit(x_train, y_train)
 
     pickm.dump_pickle(grid_search_rf, pickle_name)
@@ -222,7 +225,7 @@ plt.show()
 
 
 #%% write scores to file
-with open('models_results_new.txt', 'a') as f:
+with open('models_results_dc1.txt', 'a') as f:
     f.write(f'filter_outliers = {filter_outliers}\n remove_tidal = {remove_tidal}\n remove_directionality = '
             f'{remove_directionality}\n remove_coastal_type = {remove_coastal_type}\n undersampling = {undersampling}\n')
     f.write(f'a_majority = {a_score_all_false}\n')
@@ -269,7 +272,7 @@ def plot_feature_importances(importances):
     plt.ylim([-1, top])
     plt.tight_layout()
 
-    plt.savefig('figures/feature_importances_grounding.png', dpi=300)
+    plt.savefig('figures/feature_importances_grounding_dc1.png', dpi=300)
 
     plt.show()
 
@@ -289,7 +292,7 @@ pdp_display = PartialDependenceDisplay.from_estimator(
 
 pdp_display.plot()
 
-plt.savefig('figures/pdp_velocity.png', dpi=300)
+plt.savefig('figures/pdp_velocity_dc1.png', dpi=300)
 plt.show()
 
 
@@ -301,6 +304,6 @@ pdp_display = PartialDependenceDisplay.from_estimator(
 
 pdp_display.plot()
 
-plt.savefig('figures/pdp_shortest_distance.png', dpi=300)
+plt.savefig('figures/pdp_shortest_distance_dc1.png', dpi=300)
 plt.show()
 

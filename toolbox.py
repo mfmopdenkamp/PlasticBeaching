@@ -449,7 +449,7 @@ def get_impurity_reduction(df, column_names, split_points):
 
 def hard_coded_exp_fit(x):
     prob = 0.5 * np.exp(-0.0003 * x) + 0.1
-    output = (prob > 0.5)
+    output = (prob >= 0.5)
     return output
 
 
@@ -463,7 +463,10 @@ def get_unit_inproducts(x, y, u, v, unit=True):
         else:
             z = 1
             w = 1
-        inproducts[i] = x_i / z * u_i / w + y_i / z * v_i / w
+        if z < 1e-16 or w < 1e-16:
+            inproducts[i] = 0
+        else:
+            inproducts[i] = x_i / z * u_i / w + y_i / z * v_i / w
     return inproducts
 
 

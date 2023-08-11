@@ -8,22 +8,22 @@ import cartopy.crs as ccrs
 import os
 from file_names import *
 
-plot_test = True
+plot_test = False
 
-df_segments = pd.read_csv(f'data/{file_name_3}.csv', parse_dates=['time_start', 'time_end'])
+df_segments = pd.read_csv(file_name_3)
 
 for tidal_contituent in ['m2', 'm4', 's2', 'n2', 'k1', 'k2', 'o1', 'p1', 'q1']:
     ds = xr.open_dataset(f'data/tidals/h_{tidal_contituent}_tpxo9_atlas_30.nc')
 
     new_column = np.zeros(df_segments.shape[0], dtype=int)
-    lats = df_segments.latitude_start.values
-    lons = a.longitude_translator(df_segments.longitude_start.values.copy())
+    lats = df_segments.latitude.values
+    lons = a.longitude_translator(df_segments.longitude.values.copy())
     for i, (lat, lon) in enumerate(zip(lats, lons)):
 
         # TODO: interpolate linearly between the four closest points
 
-        i_lat = np.argmin(abs(ds.lat_z.values - lat))
-        i_lon = np.argmin(abs(ds.lon_z.values - lon))
+        i_lat = np.argmin(np.abs(ds.lat_z.values - lat))
+        i_lon = np.argmin(np.abs(ds.lon_z.values - lon))
 
         new_column[i] = ds.hRe.values[i_lon, i_lat]
 
@@ -31,8 +31,8 @@ for tidal_contituent in ['m2', 'm4', 's2', 'n2', 'k1', 'k2', 'o1', 'p1', 'q1']:
 
     ds.close()
 
-df_segments.to_csv(f'data/{file_name_4}.csv', index_label='ID')
-print(f'Tidal elevations added to {file_name_4}.csv')
+df_segments.to_csv(file_name_4, index_label=False)
+print(f'Tidal elevations added to {file_name_4}')
 
 
 if plot_test:
